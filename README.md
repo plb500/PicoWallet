@@ -3,7 +3,7 @@ Code for an BIP32/BIP44 HD (Hierarchical Deterministic) hardware wallet implemen
 
 Can generate full hierearchy of derived keys either by generating new seed (using Pico's on board entropy sources) or from hard-coded seed. 
 
-Able to generate and output BIP39-compliant mnemonic phrases. Also generates QR codes for importing private keys
+Able to generate and output BIP39-compliant mnemonic phrases. Also generates QR codes for importing private keys and for public addresses
 
 TODO:
 - MicroSD card integration
