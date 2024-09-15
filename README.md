@@ -1,5 +1,5 @@
 # PicoWallet
-Code for an BIP-32/BIP-44 HD (Hierarchical Deterministic) hardware wallet implementation on the Raspberry Pico using the Pico C SDK.
+Code for an BIP32/BIP44 HD (Hierarchical Deterministic) hardware wallet implementation on the Raspberry Pico using the Pico C SDK.
 
 Can generate full hierearchy of derived keys either by generating new seed (using Pico's on board entropy sources) or from hard-coded seed. 
 
