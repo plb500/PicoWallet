@@ -135,9 +135,9 @@ int generate_seed(SeedCtx* ctx, const char* passphrase, int passphraseLen) {
 #endif
 
 #if DEBUG_SEED_GENERATION
-    printf("Entropy bytes: ");
-    print_bytes(ctx->entropy, 64, 0);
-    printf("\n\n");
+    printf("Entropy bytes:\n");
+    print_bytes(ctx->entropy, 64, 1);
+    printf("\n");
 #endif
     apply_entropy_checksum(ctx->entropy, ENTROPY_BITS);
 
@@ -146,17 +146,23 @@ int generate_seed(SeedCtx* ctx, const char* passphrase, int passphraseLen) {
     entropy_to_mnemonic(ctx->entropy, ENTROPY_BITS, ctx->mnemonic);
 
 #if DEBUG_SEED_GENERATION
+#define WORD_SPACE      (10)
     printf("Mnemonic phrase:");
+    printf("\n    ");
     for(int i = 0; i < NUM_WORDS_IN_MNEMONIC_SENTENCE; ++i) {
-        if((i % 4) == 0) {
-            printf("\n    ");
-        } else {
-            printf(" ");
-        }
 
         printf("%s", ctx->mnemonic[i]);
+        if(((i+1) % 4) == 0) {
+            printf("\n    ");
+        } else {
+            uint8_t wordLen = strlen(ctx->mnemonic[i]);
+            uint8_t numSpaces = (WORD_SPACE - wordLen);
+            for(int i = 0; i < numSpaces; ++i) {
+                printf(" ");
+            }
+        }
     }
-    printf("\n\n");
+    printf("\n");
 #endif
 
 
@@ -176,21 +182,21 @@ int generate_seed(SeedCtx* ctx, const char* passphrase, int passphraseLen) {
     );
 
 #if DEBUG_SEED_GENERATION
-    printf("Seed: ");
-    print_bytes(ctx->seed, EXTENDED_MASTER_KEY_LENGTH, 0);
-    printf("\n\n");
+    printf("Seed:\n");
+    print_bytes(ctx->seed, EXTENDED_MASTER_KEY_LENGTH, 1);
+    printf("\n");
 
-    printf("Private Key:");
+    printf("Private Key: 0x");
     for(int i = 0; i < 32; ++i) {
         printf("%02X", ctx->seed[i]);
     }
-    printf("\n\n");
+    printf("\n");
 
-    printf("Chain code:");
+    printf(" Chain code: 0x");
     for(int i = 32; i < 64; ++i) {
         printf("%02X", ctx->seed[i]);
     }
-    printf("\n        ********\n\n");
+    printf("\n\n               ****************\n\n");
 
 #endif
 }
