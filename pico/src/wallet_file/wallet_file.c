@@ -207,7 +207,7 @@ int get_p2pkh_public_address(const ExtendedKey* key, uint8_t* address) {
 
     *prefix = 0x00;
     hash_160(key->publicKey, PUBLIC_KEY_LENGTH, hash160);
-    do_sha256(prefix, 21, sha256);
+    double_256(prefix, 21, sha256);
     base58_encode(prefix, 25, address);
 
     return 34;
@@ -232,12 +232,14 @@ int get_p2wpkh_public_address(const ExtendedKey* key, uint8_t* address) {
 int get_private_key_wif(const ExtendedKey* key, BTCNetwork network, uint8_t* address) {
     uint8_t* prefix = _workBuffer;
     uint8_t* privateKey = _workBuffer + 1;
-    uint8_t* sha256 = privateKey + PRIVATE_KEY_LENGTH;
+    uint8_t* compression = privateKey + PRIVATE_KEY_LENGTH;
+    uint8_t* sha256 = compression + 1;
 
     *prefix = 0x80;
     memcpy(privateKey, key->privateKey, PRIVATE_KEY_LENGTH);
+    *compression = 0x01;
 
-    double_256(prefix, PRIVATE_KEY_LENGTH + 1, sha256);
+    double_256(prefix, PRIVATE_KEY_LENGTH + 1 + 1, sha256);
 
-    return base58_encode(prefix, 1 + PRIVATE_KEY_LENGTH + CHECKSUM_FIELD_LENGTH, address);
+    return base58_encode(prefix, 2 + PRIVATE_KEY_LENGTH + CHECKSUM_FIELD_LENGTH, address);
 }
