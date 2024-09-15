@@ -20,6 +20,7 @@ add_executable(PicoWallet
     ${WALLET_SRC}/3rdParty/encoding/base58.c
     ${WALLET_SRC}/3rdParty/encoding/bech32.c
     ${WALLET_SRC}/3rdParty/hashing/ripemd160.c
+    ${WALLET_SRC}/3rdParty/QRCode/src/qrcode.c
     ${WALLET_SRC}/utils/platform/wallet_random.c
 
     ${WALLET_SRC}/utils/big_int/big_int.c
