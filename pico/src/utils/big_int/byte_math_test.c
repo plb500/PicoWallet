@@ -1,0 +1,330 @@
+#include "byte_array_utils.h"
+#include <stdint.h>
+#include <assert.h>
+#include <stdio.h>
+
+
+int arrays_equal(uint8_t* a, int aSize, uint8_t* b, int bSize) {
+    if(aSize != bSize) {
+        return 0;
+    }
+
+    for(int i = 0; i < aSize; ++i) {
+        if(a[i] != b[i]) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+void test_add_single_byte_no_overflow() {
+    uint8_t a[] = {0x32};
+    uint8_t b[] = {0x79};
+    uint8_t result[2];
+    uint8_t expected_result[] = {
+        0xAB
+    };
+
+    int carry = bytewise_add(a, 1, b, 1, result);
+    assert(carry == 0);
+    assert(arrays_equal(result, 1, expected_result, 1));
+}
+
+void test_add_single_byte_overflow() {
+    uint8_t a[] = {0xFF};
+    uint8_t b[] = {0xFF};
+    uint8_t result[1];
+    uint8_t expected_result[] = {
+        0x00
+    };
+
+    int carry = bytewise_add(a, 1, b, 1, result);
+    assert(carry == 1);
+    assert(arrays_equal(result, 1, expected_result, 1));
+}
+
+void test_add_multi_byte_overflow() {
+    uint8_t a[] = {
+        0xAB, 0xA1, 0x4A, 0x4A, 0xFD, 0xE2, 0x47, 0x11, 
+        0xC2, 0x91, 0x75, 0x81, 0x58, 0x43, 0x35, 0x97,
+        0x0A, 0x4D, 0x90, 0x71, 0x06, 0xB6, 0x2E, 0x20,
+        0x89, 0xDB, 0x47, 0x12, 0x3A, 0x4B, 0x5D, 0x1E
+    };
+    uint8_t b[] = {
+        0x5E, 0x8A, 0x84, 0xA4, 0xA3, 0xDD, 0x90, 0x8B,
+        0x78, 0x7E, 0x2A, 0x61, 0xE0, 0x2B, 0x8E, 0x36, 
+        0x9C, 0x29, 0x9D, 0xF5, 0x41, 0xD9, 0x6F, 0x1A,
+        0x0C, 0x62, 0xA0, 0x9F, 0x5E, 0x1C, 0xAC, 0x0C
+    };
+    uint8_t result[32];
+    uint8_t expected_result[] = {
+        0x0a, 0x2b, 0xce, 0xef, 0xa1, 0xbf, 0xd7, 0x9d, 
+        0x3b, 0x0f, 0x9f, 0xe3, 0x38, 0x6e, 0xc3, 0xcd, 
+        0xa6, 0x77, 0x2e, 0x66, 0x48, 0x8f, 0x9d, 0x3a, 
+        0x96, 0x3d, 0xe7, 0xb1, 0x98, 0x68, 0x09, 0x2a
+    };
+
+    int carry = bytewise_add(a, 32, b, 32, result);
+    assert(carry == 1);
+    assert(arrays_equal(result, 32, expected_result, 32));
+}
+
+void test_add_multi_byte_no_overflow() {
+    uint8_t a[] = {
+        0x72, 0x07, 0x75, 0x0C, 0x1E, 0x6D, 0x25, 0x4B, 
+        0x0F, 0x61, 0x71, 0x5B, 0xF4, 0x30, 0x64, 0x19, 
+        0x14, 0x0D, 0xF2, 0xBC, 0x17, 0x78, 0x5E, 0x53, 
+        0xEA, 0xC0, 0x81, 0x50, 0x07, 0xAF, 0xE3, 0x67
+    };
+    uint8_t b[] = {
+        0x11, 0x8A, 0x84, 0xA4, 0xA3, 0xDD, 0x90, 0x8B,
+        0x78, 0x7E, 0x2A, 0x61, 0xE0, 0x2B, 0x8E, 0x36,
+        0x9C, 0x29, 0x9D, 0xF5, 0x41, 0xD9, 0x6F, 0x1A,
+        0x0C, 0x62, 0xA0, 0x9F, 0x5E, 0x1C, 0xAC, 0x0C
+    };
+    uint8_t result[32];
+    uint8_t expected_result[] = {
+        0x83, 0x91, 0xf9, 0xb0, 0xc2, 0x4a, 0xb5, 0xd6,
+        0x87, 0xdf, 0x9b, 0xbd, 0xd4, 0x5b, 0xf2, 0x4f,
+        0xb0, 0x37, 0x90, 0xb1, 0x59, 0x51, 0xcd, 0x6d,
+        0xf7, 0x23, 0x21, 0xef, 0x65, 0xcc, 0x8f, 0x73
+    };
+
+    int carry = bytewise_add(a, 32, b, 32, result);
+    assert(carry == 0);
+    assert(arrays_equal(result, 32, expected_result, 32));
+}
+
+void test_add_heterogenous_arrays_no_overflow() {
+    uint8_t a[] = {
+        0x72, 0x07, 0x75, 0x0C
+    };
+    uint8_t b[] = {
+        0x11, 0x8A, 
+    };
+    uint8_t result[4];
+    uint8_t expected_result[] = {
+        0x72, 0x07, 0x86, 0x96
+    };
+
+    int carry = bytewise_add(a, 4, b, 2, result);
+    assert(carry == 0);
+    assert(arrays_equal(result, 4, expected_result, 4));
+}
+
+void test_add_heterogenous_arrays_overflow() {
+    uint8_t a[] = {
+        0xFF, 0xFF, 0x75, 0x0C
+    };
+    uint8_t b[] = {
+        0xFF, 0xFF, 
+    };
+    uint8_t result[4];
+    uint8_t expected_result[] = {
+        0x00, 0x00, 0x75, 0x0B
+    };
+
+    int carry = bytewise_add(a, 4, b, 2, result);
+    assert(carry == 1);
+    assert(arrays_equal(result, 4, expected_result, 4));
+}
+
+void test_subtract_single_byte_no_overflow() {
+    uint8_t a[] = {0xA7};
+    uint8_t b[] = {0x25};
+    uint8_t result[1];
+    uint8_t expected_result[] = {
+        0x82
+    };
+
+    int underflow = bytewise_subtract(a, 1, b, 1, result);
+    assert(underflow == 0);
+    assert(arrays_equal(result, 1, expected_result, 1));
+}
+
+void test_subtract_single_byte_overflow() {
+    uint8_t a[] = {0x25};
+    uint8_t b[] = {0xA7};
+    uint8_t result[1];
+    uint8_t expected_result[] = {
+        0x7E
+    };
+
+    int underflow = bytewise_subtract(a, 1, b, 1, result);
+    assert(underflow == 1);
+    assert(arrays_equal(result, 1, expected_result, 1));
+}
+
+void test_subtract_multi_byte_no_underflow() {
+    uint8_t a[] = {
+        0xAB, 0xA1, 0x4A, 0x4A, 0xFD, 0xE2, 0x47, 0x11, 
+        0xC2, 0x91, 0x75, 0x81, 0x58, 0x43, 0x35, 0x97,
+        0x0A, 0x4D, 0x90, 0x71, 0x06, 0xB6, 0x2E, 0x20,
+        0x89, 0xDB, 0x47, 0x12, 0x3A, 0x4B, 0x5D, 0x1E
+    };
+    uint8_t b[] = {
+        0x5E, 0x8A, 0x84, 0xA4, 0xA3, 0xDD, 0x90, 0x8B,
+        0x78, 0x7E, 0x2A, 0x61, 0xE0, 0x2B, 0x8E, 0x36, 
+        0x9C, 0x29, 0x9D, 0xF5, 0x41, 0xD9, 0x6F, 0x1A,
+        0x0C, 0x62, 0xA0, 0x9F, 0x5E, 0x1C, 0xAC, 0x0C
+    };
+    uint8_t result[32];
+    uint8_t expected_result[] = {
+        0x4d, 0x16, 0xc5, 0xa6, 0x5a, 0x04, 0xb6, 0x86,
+        0x4a, 0x13, 0x4b, 0x1f, 0x78, 0x17, 0xa7, 0x60,
+        0x6e, 0x23, 0xf2, 0x7b, 0xc4, 0xdc, 0xbf, 0x06,
+        0x7d, 0x78, 0xa6, 0x72, 0xdc, 0x2e, 0xb1, 0x12
+    };
+
+    int carry = bytewise_subtract(a, 32, b, 32, result);
+    assert(carry == 0);
+    assert(arrays_equal(result, 32, expected_result, 32));
+}
+
+void test_subtract_multi_byte_underflow() {
+    uint8_t a[] = {
+        0x5E, 0x8A, 0x84, 0xA4, 0xA3, 0xDD, 0x90, 0x8B,
+        0x78, 0x7E, 0x2A, 0x61, 0xE0, 0x2B, 0x8E, 0x36, 
+        0x9C, 0x29, 0x9D, 0xF5, 0x41, 0xD9, 0x6F, 0x1A,
+        0x0C, 0x62, 0xA0, 0x9F, 0x5E, 0x1C, 0xAC, 0x0C
+    };
+    uint8_t b[] = {
+        0xAB, 0xA1, 0x4A, 0x4A, 0xFD, 0xE2, 0x47, 0x11, 
+        0xC2, 0x91, 0x75, 0x81, 0x58, 0x43, 0x35, 0x97,
+        0x0A, 0x4D, 0x90, 0x71, 0x06, 0xB6, 0x2E, 0x20,
+        0x89, 0xDB, 0x47, 0x12, 0x3A, 0x4B, 0x5D, 0x1E
+    };
+    uint8_t result[32];
+    uint8_t expected_result[] = {
+        0xB2, 0xE9, 0x3A, 0x5A, 0x5A, 0x04, 0xB6, 0x86,
+        0x4A, 0x13, 0x4B, 0x1F, 0x78, 0x17, 0xA7, 0x60,
+        0x6E, 0x23, 0xF2, 0x7B, 0xC4, 0xDC, 0xBF, 0x06,
+        0x7D, 0x78, 0xA6, 0x72, 0xDC, 0x2E, 0xB1, 0x12
+    };
+
+    int carry = bytewise_subtract(a, 4, b, 4, result);
+
+    assert(carry == 1);
+    assert(arrays_equal(result, 4, expected_result, 4));
+}
+
+void test_cmp_single_byte_greater() {
+    uint8_t a[] = {0x79};
+    uint8_t b[] = {0x32};
+
+    int cmp = bytewise_cmp(a, 1, b, 1);
+    assert(cmp == 1);
+}
+
+void test_cmp_single_byte_lesser() {
+    uint8_t a[] = {0x32};
+    uint8_t b[] = {0x79};
+
+    int cmp = bytewise_cmp(a, 1, b, 1);
+    assert(cmp == -1);
+}
+
+void test_cmp_single_byte_equal() {
+    uint8_t a[] = {0x79};
+    uint8_t b[] = {0x79};
+
+    int cmp = bytewise_cmp(a, 1, b, 1);
+    assert(cmp == 0);
+}
+
+void test_cmp_multi_byte_greater() {
+    uint8_t a[] = {0x79, 0xA3, 0x99, 0xB3, 0x11, 0x85};
+    uint8_t b[] = {0x32, 0x85, 0xA3, 0x99, 0xB3, 0x11};
+
+    int cmp = bytewise_cmp(a, 1, b, 1);
+    assert(cmp == 1);
+}
+
+void test_cmp_multi_byte_lesser() {
+    uint8_t a[] = {0x32, 0x85, 0xA3, 0x99, 0xB3, 0x11};
+    uint8_t b[] = {0x79, 0xA3, 0x99, 0xB3, 0x11, 0x85};
+
+    int cmp = bytewise_cmp(a, 1, b, 1);
+    assert(cmp == -1);
+}
+
+void test_cmp_multi_byte_equal() {
+    uint8_t a[] = {0x79, 0xA5, 0x6E, 0x4D, 0x93};
+    uint8_t b[] = {0x79, 0xA5, 0x6E, 0x4D, 0x93};
+
+    int cmp = bytewise_cmp(a, 5, b, 5);
+    assert(cmp == 0);
+}
+
+void test_mod_single_byte_remainder() {
+    uint8_t a[] = {0x97};
+    uint8_t b[] = {0x05};
+    uint8_t result[] = {};
+    uint8_t expectedResult[] =  {0x01};
+
+    bytewise_mod(a, 1, b, 1, result);
+    assert(arrays_equal(result, 1, expectedResult, 1));     
+}
+
+void test_mod_single_byte_no_remainder() {
+    uint8_t a[] = {0x96};
+    uint8_t b[] = {0x02};
+    uint8_t result[] = {};
+    uint8_t expectedResult[] =  {0x00};
+
+    bytewise_mod(a, 1, b, 1, result);
+    assert(arrays_equal(result, 1, expectedResult, 1));     
+}
+
+void test_mod_multi_byte_remainder() {
+    uint8_t a[] = {0xAF, 0xB8, 0x23, 0x4A, 0x99, 0x97};
+    uint8_t b[] = {0x05, 0x21};
+    uint8_t result[5];
+    uint8_t expectedResult[] =  {0x00, 0x00, 0x00, 0x03, 0x75};
+
+    bytewise_mod(a, 1, b, 1, result);
+    assert(arrays_equal(result, 1, expectedResult, 1));     
+}
+
+void test_mod_multi_byte_no_remainder() {
+    uint8_t a[] = {0x29, 0x5E, 0x76, 0xB3};
+    uint8_t b[] = {0x23, 0xA8, 0x7B};
+    uint8_t result[4];
+    uint8_t expectedResult[] =  {0x00, 0x00, 0x00, 0x00};
+
+    bytewise_mod(a, 1, b, 1, result);
+    assert(arrays_equal(result, 1, expectedResult, 1));     
+}
+
+void main(void) {
+    // Addition tests
+    test_add_single_byte_no_overflow();
+    test_add_single_byte_no_overflow();
+    test_add_multi_byte_overflow();
+    test_add_multi_byte_no_overflow();
+    test_add_heterogenous_arrays_no_overflow();
+    test_add_heterogenous_arrays_overflow();
+
+    // Subtraction tests
+    test_subtract_single_byte_no_overflow();
+    test_subtract_single_byte_overflow();
+    test_subtract_multi_byte_no_underflow();
+    test_subtract_multi_byte_underflow();
+
+    // GT tests
+    test_cmp_single_byte_greater();
+    test_cmp_single_byte_lesser();
+    test_cmp_single_byte_equal();
+    test_cmp_multi_byte_greater();
+    test_cmp_multi_byte_lesser();
+    test_cmp_multi_byte_equal();
+
+    // Modulo tests
+    test_mod_single_byte_remainder();
+    test_mod_single_byte_no_remainder();
+    test_mod_multi_byte_remainder();
+    test_mod_multi_byte_no_remainder();
+
+    printf("Testing complete");
+}        
