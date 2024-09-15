@@ -2,7 +2,7 @@
 #include "pico/stdlib.h"
 
 #include "wallet_file/wallet_file.h"
-#include "QRCode/src/qrcode.h"
+#include "qrcode/qrcode.h"
 
 
 const char* KEY_HEADER                  = "<#8BitVault_OK!>"; 

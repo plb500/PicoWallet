@@ -3,8 +3,8 @@
 
 #include "platform/wallet_random.h"
 #include "big_int/big_int.h"
-#include "cryptography/cifra/src/pbkdf2.h"
-#include "cryptography/cifra/src/sha2.h"
+#include "cryptography/cifra/pbkdf2.h"
+#include "cryptography/cifra/sha2.h"
 
 #include <string.h>
 

@@ -7,8 +7,8 @@
 #include "encoding/base58.h"
 #include "encoding/bech32.h"
 
-#include "cryptography/cifra/src/hmac.h"
-#include "cryptography/cifra/src/sha2.h"
+#include "cryptography/cifra/hmac.h"
+#include "cryptography/cifra/sha2.h"
 
 #include <string.h>
 #include <stdio.h>

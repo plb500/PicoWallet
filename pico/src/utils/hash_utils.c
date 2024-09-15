@@ -1,7 +1,7 @@
 #include "hash_utils.h"
 #include <string.h>
 #include "hashing/ripemd160.h"
-#include "cryptography/cifra/src/sha2.h"
+#include "cryptography/cifra/sha2.h"
 
 ripemd160_context ripemd160_ctx;
 
