@@ -42,6 +42,5 @@ int bytewise_cmp(const uint8_t* a, int aSize, const uint8_t* b, int bSize);
  */
 void bytewise_mod(const uint8_t* a, int aSize, const uint8_t* b, int bSize, uint8_t* output);
 
-void print_bytes(const uint8_t* a, int aSize, int formatted);
 
 #endif      // _BIG_INT_H_

@@ -8,30 +8,6 @@
 #define MIN(a,b) ((a) < (b) ? (a) : (b))
 
 
-void print_bytes(const uint8_t* a, int aSize, int formatted) {
-    if(formatted) {
-        printf("    ");
-    } else {
-        printf("0x");
-    }
-
-    for(int i = 0; i < aSize; ++i) {
-        if(formatted) {
-            printf("0x");
-        }
-
-        printf("%02X", a[i]);
-
-        if(formatted) {
-            if((i > 0) && (((i+1) % 8) == 0)) {
-                printf("\n    ");
-            } else {
-                printf(" ");
-            }
-        }
-    }
-}
-
 int bytewise_add(const uint8_t* a, int aSize, const uint8_t* b, int bSize, uint8_t* output) {
     uint16_t tmpA, tmpB, result, carry = 0;
     int limit = MAX(aSize, bSize);
