@@ -6,8 +6,7 @@ Can generate full hierearchy of derived keys either by generating new seed (usin
 Able to generate and output BIP39-compliant mnemonic phrases. Also generates QR codes for importing private keys and for public addresses
 
 TODO:
-- MicroSD card integration
 - Screen/button input (currently everything is just dumped out the serial port)
-- Import keys from mnemonic
+- Import keys?
 
 ![Screenshot of serial terminal connected to PicoWallet](/images/serial_screenshot.png)
