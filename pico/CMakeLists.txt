@@ -9,7 +9,10 @@ set(WALLET_SRC "${PROJECT_SOURCE_DIR}/src")
 
 pico_sdk_init()
 
+add_subdirectory(${WALLET_SRC}/3rdParty/FatFs_SPI)
+
 add_executable(PicoWallet
+    ${WALLET_SRC}/3rdParty/cryptography/cifra/aes.c
     ${WALLET_SRC}/3rdParty/cryptography/cifra/blockwise.c
     ${WALLET_SRC}/3rdParty/cryptography/cifra/chash.c
     ${WALLET_SRC}/3rdParty/cryptography/cifra/hmac.c
@@ -38,6 +41,7 @@ add_executable(PicoWallet
 target_link_libraries(PicoWallet
     pico_stdlib
     pico_rand
+    FatFs_SPI
 )
 
 target_include_directories(PicoWallet PRIVATE 
@@ -50,10 +54,14 @@ target_include_directories(PicoWallet PRIVATE
 target_compile_definitions(PicoWallet PRIVATE 
     DEBUG_SEED_GENERATION=1
     USE_DEBUG_ENTROPY=1
+
+    # CHANGE THESE TO YOUR OWN PEPPER/PASSWORD
+    PASSCODE_PEPPER="<~8BitVault_OK!>"
+    FILE_PASSWORD="password"
 )
 
 
-pico_enable_stdio_usb(PicoWallet 0)
-pico_enable_stdio_uart(PicoWallet 1)
+pico_enable_stdio_usb(PicoWallet 1)
+pico_enable_stdio_uart(PicoWallet 0)
 
 pico_add_extra_outputs(PicoWallet)
