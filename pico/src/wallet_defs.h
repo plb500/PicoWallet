@@ -26,5 +26,8 @@ typedef uint16_t wallet_error;
 #define GET_FR_RESULT(x)        ((FRESULT) ((x) & 0xFF))
 #define NO_ERROR                (WALLET_ERROR(WF_OK, FR_OK))
 
+// Global sizes
+#define USER_PASSWORD_LENGTH    (8)
+
 
 #endif          // _WALLET_DEFS_H_

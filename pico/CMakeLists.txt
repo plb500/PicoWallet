@@ -10,6 +10,7 @@ set(WALLET_SRC "${PROJECT_SOURCE_DIR}/src")
 pico_sdk_init()
 
 add_subdirectory(${WALLET_SRC}/3rdParty/FatFs_SPI)
+add_subdirectory(${WALLET_SRC}/3rdParty/waveshare_lcd)
 
 add_executable(PicoWallet
     ${WALLET_SRC}/3rdParty/cryptography/cifra/aes.c
@@ -25,6 +26,8 @@ add_executable(PicoWallet
     ${WALLET_SRC}/3rdParty/hashing/ripemd160.c
     ${WALLET_SRC}/3rdParty/qrcode/qrcode.c
 
+    ${WALLET_SRC}/gfx/gfx_utils.c
+
     ${WALLET_SRC}/utils/big_int/big_int.c
     ${WALLET_SRC}/utils/bip39_wordlist.c
     ${WALLET_SRC}/utils/platform/wallet_random.c
@@ -33,7 +36,19 @@ add_executable(PicoWallet
     ${WALLET_SRC}/utils/key_utils.c
     ${WALLET_SRC}/utils/seed_utils.c
 
-    ${WALLET_SRC}/wallet_file/wallet_file.c
+    ${WALLET_SRC}/wallet_app/hd_wallet.c
+    ${WALLET_SRC}/wallet_app/wallet_app.c
+    ${WALLET_SRC}/wallet_app/wallet_load.c
+
+    ${WALLET_SRC}/wallet_app/screens/icon_message_screen.c
+    ${WALLET_SRC}/wallet_app/screens/info_message_screen.c
+    ${WALLET_SRC}/wallet_app/screens/timed_info_message_screen.c
+    ${WALLET_SRC}/wallet_app/screens/password_entry_screen.c
+    ${WALLET_SRC}/wallet_app/screens/splash_screen.c
+    ${WALLET_SRC}/wallet_app/screens/wallet_screen.c
+
+    ${WALLET_SRC}/wallet_app/screens/images/wallet_logo.c
+    ${WALLET_SRC}/wallet_app/screens/images/icons.c
 
     ${WALLET_SRC}/pico_wallet.c
 )
@@ -42,6 +57,10 @@ target_link_libraries(PicoWallet
     pico_stdlib
     pico_rand
     FatFs_SPI
+    WaveshareLCD
+
+    hardware_pwm
+    hardware_spi
 )
 
 target_include_directories(PicoWallet PRIVATE 

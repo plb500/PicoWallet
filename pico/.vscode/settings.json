@@ -83,7 +83,11 @@
       "cinttypes": "cpp",
       "typeinfo": "cpp",
       "sensirion_config.h": "c",
-      "debug_io.h": "c"
+      "debug_io.h": "c",
+      "sd_card.h": "c",
+      "sd_spi.h": "c",
+      "spi.h": "c",
+      "dev_config.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": true,
 }
