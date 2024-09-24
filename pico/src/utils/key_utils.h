@@ -5,6 +5,7 @@
 #define PUBLIC_KEY_LENGTH                   (33)
 #define CHAIN_CODE_LENGTH                   (32)
 #define FINGERPRINT_LENGTH                  (4)
+#define MNEMONIC_LENGTH                     (24)
 
 #include "pico/stdlib.h"
 
@@ -32,11 +33,11 @@ typedef struct {
 /**
  * Generate a new master key.
  * 
- * mnemonic         in      The string that may be used when generating the seed phrase. Optional.
- * mnemonicLen      in      The number of characters in the "mnemonic" parameter
+ * seedPhrase       in      The string that may be used when generating the seed phrase. Optional.
+ * seedPhraseLen    in      The number of characters in the "mnemonic" parameter
  * dest             out     Storage for the newly created key     
  */
-int generate_master_key(const uint8_t *mnemonic, int mnemonicLen, ExtendedKey* dest);
+int generate_master_key(const uint8_t *seedPhrase, int seedPhraseLen, ExtendedKey* dest, const char* mnemonicSentence[]);
 
 /**
  * Derive a new key from the supplied parent key.

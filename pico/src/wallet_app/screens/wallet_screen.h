@@ -3,6 +3,10 @@
 
 #include "pico/types.h"
 
+
+struct WalletScreen_t;
+#define SCREEN_DATA_BUFFER_SIZE     (256)
+
 typedef enum {
     KEY_A = 0,
     KEY_B = 1,
@@ -11,12 +15,6 @@ typedef enum {
 
     NUM_KEYS
 } DisplayKey;
-
-typedef enum {
-    ERROR,
-    SUCCESS,
-    INFO
-} IconType;
 
 typedef enum {
     UP_KEY,
@@ -38,16 +36,16 @@ typedef enum {
 } ScreenID;
 
 
-typedef void (*OnKeyPressedFunction) (DisplayKey);
-typedef void (*OnKeyReleasedFunction) (DisplayKey);
-typedef void (*OnKeyHoldFunction) (DisplayKey);
-typedef void (*OnScreenEnterFunction) (uint8_t* screenDataBuffer);
-typedef void (*OnScreenExitFunction) (uint8_t* outputData);
-typedef void (*OnScreenUpdateFunction) (void);
-typedef void (*ScreenDrawFunction) (void);
+typedef void (*OnKeyPressedFunction) (struct WalletScreen_t*, DisplayKey);
+typedef void (*OnKeyReleasedFunction) (struct WalletScreen_t*, DisplayKey);
+typedef void (*OnKeyHoldFunction) (struct WalletScreen_t*, DisplayKey);
+typedef void (*OnScreenEnterFunction) (struct WalletScreen_t*);
+typedef void (*OnScreenExitFunction) (struct WalletScreen_t*, uint8_t* outputData);
+typedef void (*OnScreenUpdateFunction) (struct WalletScreen_t*);
+typedef void (*ScreenDrawFunction) (struct WalletScreen_t*);
 
 
-typedef struct {
+typedef struct WalletScreen_t {
     int screenID;
     OnKeyPressedFunction keyPressFunction;
     OnKeyReleasedFunction keyReleaseFunction;
@@ -56,12 +54,13 @@ typedef struct {
     OnScreenExitFunction screenExitFunction;
     OnScreenUpdateFunction screenUpdateFunction;
     ScreenDrawFunction drawFunction;
-    void* screenData;
-    bool userInteractionCompleted;
+    uint8_t screenData[SCREEN_DATA_BUFFER_SIZE];
+    int exitCode;               // 0 if screen is not exiting
 } WalletScreen;
 
 
 // Utility functions
 void render_button_bar(const KeyButtonType types[]);
+
 
 #endif      // _WALLET_SCREEN_H_

@@ -54,7 +54,7 @@ const uint8_t PRIVATE_KEY_ADDRESS_PREFIX[]  = {0x04, 0x88, 0xAD, 0xE4};
 uint8_t _workBuffer[WORK_BUFFER_SIZE];
 
 
-int generate_master_key(const uint8_t *mnemonic, int mnemonicLen, ExtendedKey* dest) {
+int generate_master_key(const uint8_t *seedPhrase, int seedPhraseLen, ExtendedKey* dest, const char* mnemonicSentence[]) {
     SeedCtx* ctx = (SeedCtx*) _workBuffer;
     uint8_t* key = _workBuffer + sizeof(SeedCtx);
     const uECC_Curve curve = uECC_secp256k1();
@@ -65,7 +65,7 @@ int generate_master_key(const uint8_t *mnemonic, int mnemonicLen, ExtendedKey* d
     memset(dest->parentFingerprint, 0, FINGERPRINT_LENGTH);
 
     // Generate our random seed
-    generate_seed(ctx, mnemonic, mnemonicLen);
+    generate_seed(ctx, seedPhrase, seedPhraseLen);
 
     // Run the seed through HMAC-SHA512 to get our master extended private key and chain code
     cf_hmac(
@@ -88,6 +88,13 @@ int generate_master_key(const uint8_t *mnemonic, int mnemonicLen, ExtendedKey* d
     // Get fingerprint
     hash_160(dest->publicKey, PUBLIC_KEY_LENGTH, _workBuffer);
     memcpy(dest->fingerprint, _workBuffer, FINGERPRINT_LENGTH);
+
+    // Store mnemonic, if asked to
+    if(mnemonicSentence) {
+        for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
+            mnemonicSentence[i] = ctx->mnemonic[i];
+        }
+    }
 }
 
 int derive_child_key(const ExtendedKey* parentKey, uint32_t index, ExtendedKey* dest) {

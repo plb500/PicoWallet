@@ -1,9 +1,18 @@
 #include "wallet_load.h"
 #include "wallet_defs.h"
 
+#include "screens/password_entry_screen.h"
+#include "screens/info_message_screen.h"
+#include "screens/timed_info_message_screen.h"
+#include "screens/icon_message_screen.h"
+
 #include <string.h>
 #include <stdio.h>
 #include <stdarg.h>
+
+
+#define MESSAGE_LEN         (48)
+static char displayMessage[MESSAGE_LEN];
 
 
 void initial_app_state_update(WalletLoadStateController* controller);
@@ -14,40 +23,48 @@ void create_wallet_file_state_update(WalletLoadStateController* controller);
 void get_password_for_create_state_update(WalletLoadStateController* controller);
 
 
-extern WalletScreen gPasswordEntryScreen;
-extern WalletScreen gInfoMessageScreen;
-extern WalletScreen gTimedInfoMessageScreen;
-extern WalletScreen gIconMessageScreen;
-
-
 void display_icon_message_screen(WalletLoadStateController* controller, IconType iconType, const char* format, ...) {
-    void* writePtr = controller->screenDataBuffer;
-
-    memcpy(writePtr, &iconType, sizeof(IconType));
-    writePtr += sizeof(IconType);
-
     va_list args;
     va_start(args, format);
-    vsprintf(writePtr, format, args);
+    vsnprintf(displayMessage, MESSAGE_LEN, format, args);
     va_end(args);
 
-    controller->currentScreen = &gIconMessageScreen;
-    gIconMessageScreen.screenEnterFunction(controller->screenDataBuffer);
+    IconMessageScreenData data = {
+        .iconType = iconType,
+        .message = displayMessage
+    };
+
+    init_icon_message_screen(controller->currentScreen, data);
+    controller->currentScreen->screenEnterFunction(controller->currentScreen);
+}
+
+void display_info_message_screen(WalletLoadStateController* controller, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+    vsnprintf(displayMessage, MESSAGE_LEN, format, args);
+    va_end(args);
+
+    InfoMessageScreenData data = {
+        .message = displayMessage
+    };
+
+    init_info_message_screen(controller->currentScreen, data);
+    controller->currentScreen->screenEnterFunction(controller->currentScreen);
 }
 
 void display_timed_info_message_screen(WalletLoadStateController* controller, uint16_t timeoutMS, const char* format, ...) {
-    void* writePtr = controller->screenDataBuffer;
-
-    memcpy(writePtr, &timeoutMS, sizeof(uint16_t));
-    writePtr += sizeof(uint16_t);
-
     va_list args;
     va_start(args, format);
-    vsprintf(writePtr, format, args);
+    vsnprintf(displayMessage, MESSAGE_LEN, format, args);
     va_end(args);
 
-    controller->currentScreen = &gTimedInfoMessageScreen;
-    gTimedInfoMessageScreen.screenEnterFunction(controller->screenDataBuffer);
+    TimedInfoMessageScreenData data = {
+        .timeoutMS = timeoutMS,
+        .message = displayMessage
+    };
+
+    init_timed_info_message_screen(controller->currentScreen, data);
+    controller->currentScreen->screenEnterFunction(controller->currentScreen);
 }
 
 
@@ -58,7 +75,7 @@ void init_wallet_load_state_controller(WalletLoadStateController* controller) {
 
 void update_wallet_load_state_controller(WalletLoadStateController* controller) {
     if(controller->currentScreen && controller->currentScreen->screenUpdateFunction) {
-        controller->currentScreen->screenUpdateFunction();
+        controller->currentScreen->screenUpdateFunction(controller->currentScreen);
     }
 
     switch(controller->currentState) {
@@ -89,7 +106,7 @@ void update_wallet_load_state_controller(WalletLoadStateController* controller) 
 
 void initial_app_state_update(WalletLoadStateController* controller) {
     // Initial state, transition to load wallet state
-    if(controller->currentScreen->userInteractionCompleted) {
+    if(controller->currentScreen->exitCode) {
         controller->currentState = PW_LOAD_WALLET_FILE_STATE;
     }
 }
@@ -101,13 +118,12 @@ void load_wallet_file_state_update(WalletLoadStateController* controller) {
         // Wallet data loaded, need to get password to unlock
         controller->currentState = PW_GET_PASSWORD_FOR_LOAD_STATE;
         
-        gPasswordEntryScreen.screenEnterFunction(controller->screenDataBuffer);
-        controller->currentScreen = &gPasswordEntryScreen;
+        init_password_entry_screen(controller->currentScreen);
+        controller->currentScreen->screenEnterFunction(controller->currentScreen);
     } else if(GET_WF_RESULT(err) == WF_FILE_NOT_FOUND) {
         // There was no wallet file, need to create a new file
         controller->currentState = PW_CREATE_WALLET_FILE_STATE;
-        gInfoMessageScreen.screenEnterFunction("No wallet file\n\nCreating new\nwallet");
-        controller->currentScreen = &gInfoMessageScreen;
+        display_info_message_screen(controller, "No wallet file\n\nCreating new\nwallet");
     } else {
         // Loading wallet failed completely, display error state
         display_icon_message_screen(
@@ -125,9 +141,9 @@ void get_password_for_load_state_update(WalletLoadStateController* controller) {
 
     assert(controller->currentScreen->screenID == PASSWORD_ENTRY_SCREEN);
 
-    if(controller->currentScreen->userInteractionCompleted) {
+    if(controller->currentScreen->exitCode) {
         // Get password bytes from screen
-        controller->currentScreen->screenExitFunction(controller->wallet.password);
+        controller->currentScreen->screenExitFunction(controller->currentScreen, controller->wallet.password);
 
         // Check file data can be decrypted
         decryptError = rehydrate_wallet(&controller->wallet, controller->walletFileBuffer);
@@ -138,8 +154,7 @@ void get_password_for_load_state_update(WalletLoadStateController* controller) {
                 case WF_INVALID_PASSWORD:
                     // Password was incorrect
                     controller->currentState = PW_DISPLAY_PASSWORD_ERROR_FOR_LOAD_STATE;
-                    gInfoMessageScreen.screenEnterFunction("Incorrect password\n\nPlease try again.");
-                    controller->currentScreen = &gInfoMessageScreen;
+                    display_info_message_screen(controller, "Incorrect password\n\nPlease try again.");
                     break;
                 default:
                     // Fundamental, irrecoverable error
@@ -166,22 +181,22 @@ void get_password_for_load_state_update(WalletLoadStateController* controller) {
 void display_password_error_for_load_state_update(WalletLoadStateController* controller) {
     assert(controller->currentScreen->screenID == INFO_MESSAGE_SCREEN);
 
-    if(controller->currentScreen->userInteractionCompleted) {
+    if(controller->currentScreen->exitCode) {
         controller->currentState = PW_GET_PASSWORD_FOR_LOAD_STATE;
         
-        gPasswordEntryScreen.screenEnterFunction(controller->screenDataBuffer);
-        controller->currentScreen = &gPasswordEntryScreen;
+        init_password_entry_screen(controller->currentScreen);
+        controller->currentScreen->screenEnterFunction(controller->currentScreen);
     }
 }
 
 void create_wallet_file_state_update(WalletLoadStateController* controller) {
     assert(controller->currentScreen->screenID == INFO_MESSAGE_SCREEN);
 
-    if(controller->currentScreen->userInteractionCompleted) {
+    if(controller->currentScreen->exitCode) {
         controller->currentState = PW_GET_PASSWORD_FOR_CREATE_STATE;
         
-        gPasswordEntryScreen.screenEnterFunction(controller->screenDataBuffer);
-        controller->currentScreen = &gPasswordEntryScreen;
+        init_password_entry_screen(controller->currentScreen);
+        controller->currentScreen->screenEnterFunction(controller->currentScreen);
     }
 }
 
@@ -191,9 +206,9 @@ void get_password_for_create_state_update(WalletLoadStateController* controller)
 
     assert(controller->currentScreen->screenID == PASSWORD_ENTRY_SCREEN);
 
-    if(controller->currentScreen->userInteractionCompleted) {
+    if(controller->currentScreen->exitCode) {
         // Get password bytes from screen
-        controller->currentScreen->screenExitFunction(userPasswordBytes);
+        controller->currentScreen->screenExitFunction(controller->currentScreen, userPasswordBytes);
 
         // Need to create a new wallet
         init_new_wallet(&controller->wallet, userPasswordBytes, 0, 0);
@@ -211,7 +226,7 @@ void get_password_for_create_state_update(WalletLoadStateController* controller)
             // All is good - new wallet instance is ready and data has been stored and encrypted on disk
             display_icon_message_screen(
                 controller, SUCCESS, 
-                "Wallet loaded!"
+                "Wallet created!"
             );
             controller->currentState = PW_WALLET_READY_STATE;
         }

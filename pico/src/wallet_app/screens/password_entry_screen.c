@@ -12,22 +12,15 @@
 
 
 
-void password_entry_screen_key_pressed(DisplayKey key);
-void password_entry_screen_key_released(DisplayKey key);
-void password_entry_screen_key_held(DisplayKey key);
-void draw_password_entry_screen();
-void password_entry_screen_enter(uint8_t* screenDataBuffer);
-void password_entry_screen_exit();
-void password_entry_screen_update();
+void password_entry_screen_key_pressed(WalletScreen* screen, DisplayKey key);
+void password_entry_screen_key_released(WalletScreen* screen, DisplayKey key);
+void password_entry_screen_key_held(WalletScreen* screen, DisplayKey key);
+void draw_password_entry_screen(WalletScreen* screen);
+void password_entry_screen_enter(WalletScreen* screen);
+void password_entry_screen_exit(WalletScreen* screen, uint8_t* outputData);
+void password_entry_screen_update(WalletScreen* screen);
 
 
-typedef struct {
-    uint8_t password[USER_PASSWORD_LENGTH];
-    uint8_t selectedPasswordDigit;
-} PasswordEntryData;
-
-
-static PasswordEntryData* passwordEntryScreenData;
 static sFONT* drawFont = &Font10;
 
 static const KeyButtonType BUTTON_BAR_TYPES[] = {
@@ -37,21 +30,15 @@ static const KeyButtonType BUTTON_BAR_TYPES[] = {
     OK_KEY
 };
 
-
-WalletScreen gPasswordEntryScreen = {
-    .screenID = PASSWORD_ENTRY_SCREEN,
-    .keyPressFunction = password_entry_screen_key_pressed,
-    .keyReleaseFunction = password_entry_screen_key_released,
-    .keyHoldFunction = password_entry_screen_key_held,
-    .screenEnterFunction = password_entry_screen_enter,
-    .screenUpdateFunction = password_entry_screen_update,
-    .drawFunction = draw_password_entry_screen,
-    .screenExitFunction = password_entry_screen_exit,
-    .screenData = NULL
-};
+typedef struct {
+    uint8_t password[USER_PASSWORD_LENGTH];
+    uint8_t selectedPasswordDigit;
+} PasswordEntryData;
 
 
-void update_selected_char(DisplayKey key) {
+void update_selected_char(WalletScreen* screen, DisplayKey key) {
+    PasswordEntryData* passwordEntryScreenData = (PasswordEntryData*) screen->screenData; 
+    
     switch(key) {
         case KEY_A:
             --passwordEntryScreenData->password[passwordEntryScreenData->selectedPasswordDigit];
@@ -75,23 +62,35 @@ void update_selected_char(DisplayKey key) {
             break;
 
         case KEY_D:
-            gPasswordEntryScreen.userInteractionCompleted = true;
+            screen->exitCode = 1;
             break;
     }
 }
 
-void password_entry_screen_key_pressed(DisplayKey key) {
+void init_password_entry_screen(WalletScreen* screen) {
+    screen->screenID = PASSWORD_ENTRY_SCREEN;
+    screen->keyPressFunction = password_entry_screen_key_pressed;
+    screen->keyReleaseFunction = password_entry_screen_key_released;
+    screen->keyHoldFunction = password_entry_screen_key_held;
+    screen->screenEnterFunction = password_entry_screen_enter;
+    screen->screenUpdateFunction = password_entry_screen_update;
+    screen->drawFunction = draw_password_entry_screen;
+    screen->screenExitFunction = password_entry_screen_exit;
 }
 
-void password_entry_screen_key_held(DisplayKey key) {
-    update_selected_char(key);
+void password_entry_screen_key_pressed(WalletScreen* screen, DisplayKey key) {
 }
 
-void password_entry_screen_key_released(DisplayKey key) {
-    update_selected_char(key);
+void password_entry_screen_key_held(WalletScreen* screen, DisplayKey key) {
+    update_selected_char(screen, key);
 }
 
-void draw_password_entry_screen() {
+void password_entry_screen_key_released(WalletScreen* screen, DisplayKey key) {
+    update_selected_char(screen, key);
+}
+
+void draw_password_entry_screen(WalletScreen* screen) {
+    PasswordEntryData* passwordEntryScreenData = (PasswordEntryData*) screen->screenData; 
     const uint16_t charWidth = drawFont->Width;
     const uint16_t passwordWidth = (charWidth * USER_PASSWORD_LENGTH);
 
@@ -126,9 +125,9 @@ void draw_password_entry_screen() {
     render_button_bar(BUTTON_BAR_TYPES);
 }
 
-void password_entry_screen_enter(uint8_t* screenDataBuffer) {
-    gPasswordEntryScreen.userInteractionCompleted = false;
-    passwordEntryScreenData = (PasswordEntryData*) screenDataBuffer;
+void password_entry_screen_enter(WalletScreen* screen) {
+    screen->exitCode = 0;
+    PasswordEntryData* passwordEntryScreenData = (PasswordEntryData*) screen->screenData; 
     passwordEntryScreenData->selectedPasswordDigit = 0;
 
     passwordEntryScreenData->password[0] = 'p';
@@ -141,8 +140,9 @@ void password_entry_screen_enter(uint8_t* screenDataBuffer) {
     passwordEntryScreenData->password[7] = 'd';
 }
 
-void password_entry_screen_exit(uint8_t* outputData) {
+void password_entry_screen_exit(WalletScreen* screen, uint8_t* outputData) {
+    PasswordEntryData* passwordEntryScreenData = (PasswordEntryData*) screen->screenData; 
     memcpy(outputData, passwordEntryScreenData->password, USER_PASSWORD_LENGTH);
 }
 
-void password_entry_screen_update() {}
+void password_entry_screen_update(WalletScreen* screen) {}

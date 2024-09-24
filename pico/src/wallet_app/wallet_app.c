@@ -1,9 +1,9 @@
 #include "wallet_app.h"
+#include "screens/splash_screen.h"
 #include "wallet_load.h"
 #include "gfx/gfx_utils.h"
 
 
-#define SCREEN_DATA_BUFFER_SIZE             (128)
 #define HOLD_REPEAT_TIME_MS                 (250)
 
 typedef enum {
@@ -12,8 +12,6 @@ typedef enum {
     APP_USING_WALLET
 } ApplicationState;
 
-
-extern WalletScreen gSplashScreen;
 
 static const uint8_t KEY_PINS[] = {
     15,
@@ -25,15 +23,17 @@ static const uint8_t KEY_PINS[] = {
 static uint8_t keyStates[NUM_KEYS];
 static uint32_t keyHoldTimes[NUM_KEYS];
 
-static WalletScreen* currentScreen;
+static WalletScreen currentScreen;
 static ApplicationState currentAppState;
-static WalletLoadStateController walletLoadStateController;
+static WalletLoadStateController walletLoadStateController = {
+    .currentScreen = &currentScreen
+};
 
 
 WalletScreen* get_current_screen() {
     switch(currentAppState) {
         case APP_SPLASH_SCREEN:
-            return &gSplashScreen;
+            return &currentScreen;
         case APP_LOADING_WALLET:
             return walletLoadStateController.currentScreen;
         case APP_USING_WALLET:
@@ -42,7 +42,7 @@ WalletScreen* get_current_screen() {
 }
 
 void do_splash_screen_update() {
-    if(gSplashScreen.userInteractionCompleted) {
+    if(currentScreen.exitCode) {
         init_wallet_load_state_controller(&walletLoadStateController);
         currentAppState = APP_LOADING_WALLET;
     }
@@ -70,12 +70,12 @@ void update_buttons(WalletScreen* currentScreen) {
             if(currentState) {
                 // Released
                 if(currentScreen->keyReleaseFunction) {
-                    currentScreen->keyReleaseFunction(i);
+                    currentScreen->keyReleaseFunction(currentScreen, i);
                 }
             } else {
                 // Pressed
                 if(currentScreen->keyPressFunction) {
-                    currentScreen->keyPressFunction(i);
+                    currentScreen->keyPressFunction(currentScreen, i);
                 }
                 keyHoldTimes[i] = to_ms_since_boot(get_absolute_time());
             }
@@ -84,7 +84,7 @@ void update_buttons(WalletScreen* currentScreen) {
             uint32_t currentTime = to_ms_since_boot(get_absolute_time());
             if((currentTime - keyHoldTimes[i]) > HOLD_REPEAT_TIME_MS) {
                 if(currentScreen->keyHoldFunction) {
-                    currentScreen->keyHoldFunction(i);
+                    currentScreen->keyHoldFunction(currentScreen, i);
                 }
                 keyHoldTimes[i] = currentTime;
             }
@@ -99,7 +99,7 @@ void init_application() {
     init_display();
 
     currentAppState = APP_SPLASH_SCREEN;
-    currentScreen = &gSplashScreen;
+    init_splash_screen(&currentScreen);
 }
 
 void update_application() {

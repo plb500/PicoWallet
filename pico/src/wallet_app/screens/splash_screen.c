@@ -1,44 +1,43 @@
-#include "wallet_app/screens/wallet_screen.h"
+#include "splash_screen.h"
 #include "waveshare_lcd/lib/GUI/GUI_Paint.h"
 
 
 extern const unsigned char WALLET_LOGO[];
 
 
-void splash_screen_entered();
-void splash_screen_key_pressed(DisplayKey key);
-void splash_screen_key_released(DisplayKey key);
-void splash_screen_key_held(DisplayKey key);
-void draw_splash_screen();
+void splash_screen_entered(WalletScreen* screen);
+void splash_screen_key_pressed(WalletScreen* screen, DisplayKey key);
+void splash_screen_key_released(WalletScreen* screen, DisplayKey key);
+void splash_screen_key_held(WalletScreen* screen, DisplayKey key);
+void draw_splash_screen(WalletScreen* screen);
 
 
-WalletScreen gSplashScreen = {
-    .screenID = SPLASH_SCREEN,
-    .keyPressFunction = splash_screen_key_pressed,
-    .keyReleaseFunction = splash_screen_key_released,
-    .keyHoldFunction = splash_screen_key_held,
-    .screenEnterFunction = splash_screen_entered,
-    .screenUpdateFunction = NULL,
-    .drawFunction = draw_splash_screen,
-    .screenExitFunction = NULL,
-    .screenData = NULL
-};
-
-
-void splash_screen_entered() {
-    gSplashScreen.userInteractionCompleted = false;
+void init_splash_screen(WalletScreen* screen) {
+    screen->screenID = SPLASH_SCREEN;
+    screen->keyPressFunction = splash_screen_key_pressed;
+    screen->keyReleaseFunction = splash_screen_key_released;
+    screen->keyHoldFunction = splash_screen_key_held;
+    screen->screenEnterFunction = splash_screen_entered;
+    screen->screenUpdateFunction = NULL;
+    screen->drawFunction = draw_splash_screen;
+    screen->screenExitFunction = NULL;
 }
 
-void splash_screen_key_pressed(DisplayKey key) {
+
+void splash_screen_entered(WalletScreen* screen) {
+    screen->exitCode = 0;
 }
 
-void splash_screen_key_released(DisplayKey key) {
-    gSplashScreen.userInteractionCompleted = true;
+void splash_screen_key_pressed(WalletScreen* screen, DisplayKey key) {
 }
 
-void splash_screen_key_held(DisplayKey key) {
+void splash_screen_key_released(WalletScreen* screen, DisplayKey key) {
+    screen->exitCode = 1;
 }
 
-void draw_splash_screen() {
+void splash_screen_key_held(WalletScreen* screen, DisplayKey key) {
+}
+
+void draw_splash_screen(WalletScreen* screen) {
     Paint_DrawImage(WALLET_LOGO, 0, 0, 128, 128);
 }

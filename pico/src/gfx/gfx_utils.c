@@ -29,7 +29,7 @@ void update_display(WalletScreen* screen) {
     start_paint();
 
     if(screen && screen->drawFunction) {
-        screen->drawFunction();
+        screen->drawFunction(screen);
     }
 
     end_paint();

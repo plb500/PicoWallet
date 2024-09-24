@@ -8,7 +8,8 @@
 
 
 typedef struct {
-    ExtendedKey masterKey;
+    ExtendedKey masterKey;  
+    ExtendedKey baseKey44;      // BIP44 Base key from which all keys derive ("purpose" = 44)
     uint8_t password[USER_PASSWORD_LENGTH];
 } HDWallet;
 
