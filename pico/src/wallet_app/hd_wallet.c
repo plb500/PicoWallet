@@ -40,7 +40,7 @@ static sd_card_t SD_CARD = {
                                         // present. Use -1 if there is no card detect.
 };
 
-static const char* const WALLET_FILE       = "wallet3.dat";
+static const char* const WALLET_FILE       = "wallet.dat";
 static const char* const WALLET_DIRECTORY  = "PicoWallet";
 static cf_aes_context aesContext;
 
@@ -164,11 +164,9 @@ FRESULT close_wallet_file(FIL* file) {
 }
 
 int init_new_wallet(HDWallet* wallet, const uint8_t* password, const uint8_t* mnemonic, int mnemonicLen) {
-    const char* mnemonicSentence[MNEMONIC_LENGTH];
-    generate_master_key(mnemonic, mnemonicLen, &wallet->masterKey, mnemonicSentence);
+    generate_master_key(mnemonic, mnemonicLen, &wallet->masterKey, wallet->mnemonicSentence);
     memcpy(wallet->password, password, USER_PASSWORD_LENGTH);
     derive_child_key(&wallet->masterKey, BASE_KEY_INDEX, &wallet->baseKey44);
-
     return 1;
 }
 

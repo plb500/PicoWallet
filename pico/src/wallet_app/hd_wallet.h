@@ -8,9 +8,10 @@
 
 
 typedef struct {
-    ExtendedKey masterKey;  
-    ExtendedKey baseKey44;      // BIP44 Base key from which all keys derive ("purpose" = 44)
+    ExtendedKey masterKey;                              // The root, master key
+    ExtendedKey baseKey44;                              // BIP44 Base key from which all keys derive ("purpose" = 44)
     uint8_t password[USER_PASSWORD_LENGTH];
+    const char* mnemonicSentence[MNEMONIC_LENGTH];      // Only available on newly creted keys, not keys loaded frm file
 } HDWallet;
 
 

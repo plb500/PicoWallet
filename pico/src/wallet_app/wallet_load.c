@@ -5,6 +5,7 @@
 #include "screens/info_message_screen.h"
 #include "screens/timed_info_message_screen.h"
 #include "screens/icon_message_screen.h"
+#include "screens/mnemonic_display_screen.h"
 
 #include <string.h>
 #include <stdio.h>
@@ -13,6 +14,19 @@
 
 #define MESSAGE_LEN         (48)
 static char displayMessage[MESSAGE_LEN];
+static const KeyButtonType NO_KEYS[] = {
+    NO_KEY,
+    NO_KEY,
+    NO_KEY,
+    NO_KEY
+};
+
+static const KeyButtonType WALLET_CREATED_KEYS[] = {
+    MNEMONIC_KEY,
+    NO_KEY,
+    NO_KEY,
+    OK_KEY
+};
 
 
 void initial_app_state_update(WalletLoadStateController* controller);
@@ -21,9 +35,11 @@ void get_password_for_load_state_update(WalletLoadStateController* controller);
 void display_password_error_for_load_state_update(WalletLoadStateController* controller);
 void create_wallet_file_state_update(WalletLoadStateController* controller);
 void get_password_for_create_state_update(WalletLoadStateController* controller);
+void wallet_created_ready_state_update(WalletLoadStateController* controller);
+void display_mnemonic_state_update(WalletLoadStateController* controller);
 
 
-void display_icon_message_screen(WalletLoadStateController* controller, IconType iconType, const char* format, ...) {
+void display_icon_message_screen(WalletLoadStateController* controller, IconType iconType, const KeyButtonType buttons[NUM_KEYS], const char* format, ...) {
     va_list args;
     va_start(args, format);
     vsnprintf(displayMessage, MESSAGE_LEN, format, args);
@@ -31,8 +47,9 @@ void display_icon_message_screen(WalletLoadStateController* controller, IconType
 
     IconMessageScreenData data = {
         .iconType = iconType,
-        .message = displayMessage
+        .message = displayMessage,
     };
+    memcpy(data.buttonKeys, buttons, NUM_KEYS);
 
     init_icon_message_screen(controller->currentScreen, data);
     controller->currentScreen->screenEnterFunction(controller->currentScreen);
@@ -97,9 +114,15 @@ void update_wallet_load_state_controller(WalletLoadStateController* controller) 
         case PW_GET_PASSWORD_FOR_CREATE_STATE:
             get_password_for_create_state_update(controller);
             break;
+        case PW_DISPLAY_CREATED_MNEMONIC_STATE:
+            display_mnemonic_state_update(controller);
+            break;
         case PW_TERMINAL_ERROR_STATE:
             break;
-        case PW_WALLET_READY_STATE:
+        case PW_WALLET_LOADED_READY_STATE:
+            break;
+        case PW_WALLET_CREATED_READY_STATE:
+            wallet_created_ready_state_update(controller);
             break;
     }
 }
@@ -127,7 +150,7 @@ void load_wallet_file_state_update(WalletLoadStateController* controller) {
     } else {
         // Loading wallet failed completely, display error state
         display_icon_message_screen(
-            controller, ERROR, 
+            controller, ERROR, NO_KEYS,
             "Load failed\nCode: 0x%04X", err
         );
 
@@ -159,7 +182,7 @@ void get_password_for_load_state_update(WalletLoadStateController* controller) {
                 default:
                     // Fundamental, irrecoverable error
                     display_icon_message_screen(
-                        controller, ERROR, 
+                        controller, ERROR, NO_KEYS,
                         "Error decrypting\nCode: 0x%04X", decryptError
                     );
 
@@ -170,10 +193,10 @@ void get_password_for_load_state_update(WalletLoadStateController* controller) {
         } else {
             // All is good - file bytes have been decrypted into wallet instance
             display_icon_message_screen(
-                controller, SUCCESS, 
+                controller, SUCCESS, NO_KEYS,
                 "Wallet loaded!"
             );
-            controller->currentState = PW_WALLET_READY_STATE;
+            controller->currentState = PW_WALLET_LOADED_READY_STATE;
         }
     }
 }
@@ -216,7 +239,7 @@ void get_password_for_create_state_update(WalletLoadStateController* controller)
         if(saveError != NO_ERROR) {
             // Something bad happened. SD card might be corrupted or removed
             display_icon_message_screen(
-                controller, ERROR, 
+                controller, ERROR, NO_KEYS,
                 "Error saving\nCode: 0x%04X", saveError
             );
 
@@ -225,17 +248,41 @@ void get_password_for_create_state_update(WalletLoadStateController* controller)
         } else {
             // All is good - new wallet instance is ready and data has been stored and encrypted on disk
             display_icon_message_screen(
-                controller, SUCCESS, 
+                controller, SUCCESS, WALLET_CREATED_KEYS,
                 "Wallet created!"
             );
-            controller->currentState = PW_WALLET_READY_STATE;
+            controller->currentState = PW_WALLET_CREATED_READY_STATE;
         }
+    }
+}
+
+void wallet_created_ready_state_update(WalletLoadStateController* controller) {
+    if(controller->currentScreen->exitCode == MNEMONIC_KEY) {
+        MnemonicMessageScreenData data;
+        for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
+            data.mnemonicSentence[i] = controller->wallet.mnemonicSentence[i];
+        }
+        controller->currentState = PW_DISPLAY_CREATED_MNEMONIC_STATE;
+        
+        init_mnemonic_display_screen(controller->currentScreen, data);
+        controller->currentScreen->screenEnterFunction(controller->currentScreen);
+    }
+}
+
+void display_mnemonic_state_update(WalletLoadStateController* controller) {
+    if(controller->currentScreen->exitCode) {
+        display_icon_message_screen(
+            controller, SUCCESS, WALLET_CREATED_KEYS,
+            "Wallet created!"
+        );
+        controller->currentState = PW_WALLET_CREATED_READY_STATE;
     }
 }
 
 bool is_wallet_load_complete(WalletLoadStateController* controller) {
     return (
-        (controller->currentState == PW_WALLET_READY_STATE) ||
+        (controller->currentState == PW_WALLET_LOADED_READY_STATE) ||
+        (controller->currentState == PW_WALLET_CREATED_READY_STATE) ||
         (controller->currentState == PW_TERMINAL_ERROR_STATE)
     );
 }

@@ -87,7 +87,10 @@
       "sd_card.h": "c",
       "sd_spi.h": "c",
       "spi.h": "c",
-      "dev_config.h": "c"
+      "dev_config.h": "c",
+      "wallet_fonts.h": "c",
+      "gfx_utils.h": "c",
+      "wallet_screen.h": "c"
     },
     "cortex-debug.variableUseNaturalFormat": true,
 }

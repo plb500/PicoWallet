@@ -1,6 +1,6 @@
 #include "icon_message_screen.h"
-#include "waveshare_lcd/lib/GUI/GUI_Paint.h"
-#include "waveshare_lcd/lib/LCD/LCD_1in44.h"
+#include "gfx/gfx_utils.h"
+#include "gfx/wallet_fonts.h"
 #include "pico/time.h"
 
 #include <string.h>
@@ -30,22 +30,36 @@ void init_icon_message_screen(WalletScreen* screen, IconMessageScreenData data) 
 }
 
 void icon_message_screen_key_released(WalletScreen* screen, DisplayKey key) {
-    screen->exitCode = 1;
+    IconMessageScreenData* data = (IconMessageScreenData*) screen->screenData;
+
+    screen->exitCode = data->buttonKeys[key];
 }
 
 void draw_icon_message_screen(WalletScreen* screen) {
+    const WalletDisplayInfo* displayInfo = get_display_info();
+    const WalletFont* drawFont = &PW_FONT_MED;
     const uint8_t iconDimensions = 48;
-    const uint8_t iconX = (LCD_1IN44_WIDTH - iconDimensions) / 2;
+    const uint8_t iconX = (displayInfo->displayWidth - iconDimensions) / 2;
+
     IconMessageScreenData* data = (IconMessageScreenData*) screen->screenData;
-
-    int messageWidth = (Font12.Width * strlen(data->message));
-    int msgX = (messageWidth >= LCD_1IN44_WIDTH) ? 0 : ((LCD_1IN44_WIDTH - messageWidth) / 2);
-
+    uint16_t iconSpaceTopMargin, iconSpaceBottomMargin;
+    int hasKeys = 0;
+    int messageWidth = (drawFont->charWidth * strlen(data->message));
+    int msgX = (messageWidth >= displayInfo->displayWidth) ? 0 : ((displayInfo->displayWidth - messageWidth) / 2);
     int yPos = 10;
-    Paint_DrawString_EN(msgX, yPos, data->message, &Font12, WHITE, BLACK);
-    yPos += Font12.Height;
 
-    yPos += (((LCD_1IN44_HEIGHT - yPos) - iconDimensions) / 2);
+    for(int i = 0; i < NUM_KEYS; ++i) {
+        if(data->buttonKeys[i] != NO_KEY) {
+            hasKeys = 1;
+            break;
+        }
+    }
+
+    wallet_gfx_draw_string(msgX, yPos, data->message, strlen(data->message), &PW_FONT_MED, PW_WHITE, PW_BLACK);
+    iconSpaceTopMargin = (yPos + drawFont->charHeight);
+    iconSpaceBottomMargin = hasKeys ? (displayInfo->displayHeight - BUTTON_HEIGHT) : displayInfo->displayHeight;
+
+    yPos = ((iconSpaceTopMargin + iconSpaceBottomMargin) / 2) - (iconDimensions / 2);
 
     const uint8_t* iconImage = 0;
     switch(data->iconType) {
@@ -61,7 +75,11 @@ void draw_icon_message_screen(WalletScreen* screen) {
     }
 
     if(iconImage) {
-        Paint_DrawImage(iconImage, iconX, yPos, iconDimensions, iconDimensions);
+        wallet_gfx_draw_bitmap(iconImage, iconX, yPos, iconDimensions, iconDimensions);
+    }
+
+    if(hasKeys) {
+        render_button_bar(data->buttonKeys);
     }
 }
 

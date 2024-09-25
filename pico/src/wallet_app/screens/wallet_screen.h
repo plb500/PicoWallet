@@ -6,6 +6,7 @@
 
 struct WalletScreen_t;
 #define SCREEN_DATA_BUFFER_SIZE     (256)
+#define BUTTON_HEIGHT               (16)
 
 typedef enum {
     KEY_A = 0,
@@ -17,13 +18,14 @@ typedef enum {
 } DisplayKey;
 
 typedef enum {
+    NO_KEY,
     UP_KEY,
     DOWN_KEY,
     LEFT_KEY,
     RIGHT_KEY,
     OK_KEY,
-    OTHER_KEY,
-    NO_KEY
+    MNEMONIC_KEY,
+    OTHER_KEY
 } KeyButtonType;
 
 typedef enum {
@@ -32,7 +34,8 @@ typedef enum {
     PASSWORD_ENTRY_SCREEN,
     INFO_MESSAGE_SCREEN,
     TIMED_INFO_MESSAGE_SCREEN,
-    ICON_MESSAGE_SCREEN
+    ICON_MESSAGE_SCREEN,
+    MNEMONIC_DISPLAY_SCREEN
 } ScreenID;
 
 

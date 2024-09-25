@@ -1,7 +1,6 @@
-#include "gfx_utils.h"
+#include "wallet_screen.h"
+#include "gfx/gfx_utils.h"
 #include "utils/key_utils.h"
-#include "waveshare_lcd/lib/GUI/GUI_Paint.h"
-#include "waveshare_lcd/lib/LCD/LCD_1in44.h"
 #include <string.h>
 
 
@@ -21,13 +20,14 @@ void qr_screen_release(DisplayKey key) {
 }
 
 void qr_screen_draw() {
+    const WalletDisplayInfo* displayInfo = get_display_info();
     uint16_t currentBit = 0;
 
-    int qrPixelWidth = (LCD_1IN44.WIDTH / QR_CODE_SIZE);
-    int qrPixelHeight = (LCD_1IN44.HEIGHT / QR_CODE_SIZE);
+    int qrPixelWidth = (displayInfo->displayWidth / QR_CODE_SIZE);
+    int qrPixelHeight = (displayInfo->displayHeight / QR_CODE_SIZE);
 
-    int hPad = (LCD_1IN44.WIDTH - (qrPixelWidth * QR_CODE_SIZE)) / 2;
-    int vPad = (LCD_1IN44.HEIGHT - (qrPixelHeight * QR_CODE_SIZE)) / 2;
+    int hPad = (displayInfo->displayWidth - (qrPixelWidth * QR_CODE_SIZE)) / 2;
+    int vPad = (displayInfo->displayWidth - (qrPixelHeight * QR_CODE_SIZE)) / 2;
     
     int xPos = hPad;
     int yPos = vPad;
@@ -38,19 +38,16 @@ void qr_screen_draw() {
             uint8_t cBit = currentBit % 8;
 
             uint8_t set = (qrBuffer[cByte] & (1 << (7 - cBit)));
-            UWORD color = (set == 0) ? WHITE : BLACK;
+            WalletPaintColor color = (set == 0) ? PW_WHITE : PW_BLACK;
 
-            Paint_DrawRectangle(xPos, yPos, (xPos + qrPixelWidth), (yPos + qrPixelHeight), color, DOT_PIXEL_1X1, DRAW_FILL_FULL);
+            wallet_gfx_draw_rectangle(
+                xPos, yPos, 
+                (xPos + qrPixelWidth), (yPos + qrPixelHeight),
+                1, true, color
+            );
 
             ++currentBit;
         }
         xPos = hPad;
     }
 }
-
-WalletScreen qrScreen = {
-    .screenID = 0,
-    .drawFunction = qr_screen_draw,
-    .keyPressFunction = qr_screen_press,
-    .keyReleaseFunction = qr_screen_release
-};

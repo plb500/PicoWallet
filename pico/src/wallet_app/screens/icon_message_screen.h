@@ -12,6 +12,7 @@ typedef enum {
 typedef struct {
     IconType iconType;
     const char *message;
+    KeyButtonType buttonKeys[NUM_KEYS];
 } IconMessageScreenData;
 
 void init_icon_message_screen(WalletScreen* screen, IconMessageScreenData data);

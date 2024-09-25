@@ -26,7 +26,8 @@ add_executable(PicoWallet
     ${WALLET_SRC}/3rdParty/hashing/ripemd160.c
     ${WALLET_SRC}/3rdParty/qrcode/qrcode.c
 
-    ${WALLET_SRC}/gfx/gfx_utils.c
+    ${WALLET_SRC}/gfx/waveshare_gfx_interface.c
+    ${WALLET_SRC}/gfx/wallet_fonts.c
 
     ${WALLET_SRC}/utils/big_int/big_int.c
     ${WALLET_SRC}/utils/bip39_wordlist.c
@@ -42,8 +43,10 @@ add_executable(PicoWallet
 
     ${WALLET_SRC}/wallet_app/screens/icon_message_screen.c
     ${WALLET_SRC}/wallet_app/screens/info_message_screen.c
+    ${WALLET_SRC}/wallet_app/screens/mnemonic_display_screen.c
     ${WALLET_SRC}/wallet_app/screens/timed_info_message_screen.c
     ${WALLET_SRC}/wallet_app/screens/password_entry_screen.c
+    ${WALLET_SRC}/wallet_app/screens/qr_code_screen.c
     ${WALLET_SRC}/wallet_app/screens/splash_screen.c
     ${WALLET_SRC}/wallet_app/screens/wallet_screen.c
 

@@ -1,6 +1,6 @@
 #include "info_message_screen.h"
-#include "waveshare_lcd/lib/GUI/GUI_Paint.h"
-#include "waveshare_lcd/lib/LCD/LCD_1in44.h"
+#include "gfx/gfx_utils.h"
+#include "gfx/wallet_fonts.h"
 
 #include <string.h>
 
@@ -34,13 +34,15 @@ void info_message_screen_key_released(WalletScreen* screen, DisplayKey key) {
 }
 
 void draw_info_message_screen(WalletScreen* screen) {
+    const WalletDisplayInfo* displayInfo = get_display_info();
+    const WalletFont* drawFont = &PW_FONT_MED;
     InfoMessageScreenData* data = (InfoMessageScreenData*) screen->screenData;
-
-    int messageWidth = (Font12.Width * strlen(data->message));
-    int msgX = (messageWidth >= LCD_1IN44_WIDTH) ? 0 : ((LCD_1IN44_WIDTH - messageWidth) / 2);
+    int messageLength = strlen(data->message);
+    int messageWidth = (drawFont->charWidth * messageLength);
+    int msgX = (messageWidth >= displayInfo->displayWidth) ? 0 : ((displayInfo->displayWidth - messageWidth) / 2);
     int msgY = 10;
 
-    Paint_DrawString_EN(msgX, msgY, data->message, &Font12, WHITE, BLACK);
+    wallet_gfx_draw_string(msgX, msgY, data->message, messageWidth, drawFont, PW_WHITE, PW_BLACK);
 
     render_button_bar(BUTTON_BAR_TYPES);
 }

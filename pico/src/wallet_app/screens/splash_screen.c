@@ -1,6 +1,5 @@
 #include "splash_screen.h"
-#include "waveshare_lcd/lib/GUI/GUI_Paint.h"
-
+#include "gfx/gfx_utils.h"
 
 extern const unsigned char WALLET_LOGO[];
 
@@ -39,5 +38,5 @@ void splash_screen_key_held(WalletScreen* screen, DisplayKey key) {
 }
 
 void draw_splash_screen(WalletScreen* screen) {
-    Paint_DrawImage(WALLET_LOGO, 0, 0, 128, 128);
+    wallet_gfx_draw_bitmap(WALLET_LOGO, 0, 0, 128, 128);
 }

@@ -1,8 +1,9 @@
 #include "wallet_defs.h"
 #include "wallet_app/wallet_app.h"
 #include "wallet_screen.h"
-#include "waveshare_lcd/lib/GUI/GUI_Paint.h"
-#include "waveshare_lcd/lib/LCD/LCD_1in44.h"
+#include "gfx/gfx_utils.h"
+#include "gfx/wallet_fonts.h"
+
 #include <string.h>
 
 
@@ -20,8 +21,6 @@ void password_entry_screen_enter(WalletScreen* screen);
 void password_entry_screen_exit(WalletScreen* screen, uint8_t* outputData);
 void password_entry_screen_update(WalletScreen* screen);
 
-
-static sFONT* drawFont = &Font10;
 
 static const KeyButtonType BUTTON_BAR_TYPES[] = {
     UP_KEY,
@@ -90,36 +89,37 @@ void password_entry_screen_key_released(WalletScreen* screen, DisplayKey key) {
 }
 
 void draw_password_entry_screen(WalletScreen* screen) {
-    PasswordEntryData* passwordEntryScreenData = (PasswordEntryData*) screen->screenData; 
-    const uint16_t charWidth = drawFont->Width;
-    const uint16_t passwordWidth = (charWidth * USER_PASSWORD_LENGTH);
+    const WalletDisplayInfo* displayInfo = get_display_info();
+    const WalletFont* passwordFont = &PW_FONT_LARGE;
+    const WalletFont* messageFont = &PW_FONT_MED;
 
-    int messageWidth = (Font12.Width * strlen(TITLE_STRING));
-    int xPos = (messageWidth >= LCD_1IN44_WIDTH) ? 0 : ((LCD_1IN44_WIDTH - messageWidth) / 2);
+    PasswordEntryData* passwordEntryScreenData = (PasswordEntryData*) screen->screenData; 
+    const uint16_t passwordWidth = (passwordFont->charWidth * USER_PASSWORD_LENGTH);
+    const uint16_t messageWidth = (messageFont->charWidth * strlen(TITLE_STRING));
+    int xPos = (messageWidth >= displayInfo->displayWidth) ? 0 : ((displayInfo->displayWidth - messageWidth) / 2);
     int yPos = 10;
 
-    Paint_DrawString_EN(xPos, yPos, TITLE_STRING, &Font12, WHITE, BLACK);
+    wallet_gfx_draw_string(xPos, yPos, TITLE_STRING, strlen(TITLE_STRING), messageFont, PW_WHITE, PW_BLACK);
 
-    yPos += (drawFont->Height * 2);
-    xPos = ((LCD_1IN44_WIDTH - passwordWidth) / 2);
+    yPos += (messageFont->charHeight * 2);
+    xPos = ((displayInfo->displayWidth - passwordWidth) / 2);
 
     for(int i = 0; i < USER_PASSWORD_LENGTH; ++i) {
         bool selectedChar = (i == passwordEntryScreenData->selectedPasswordDigit);
-        uint16_t charColor = selectedChar ? GREEN : WHITE;
+        uint16_t charColor = selectedChar ? PW_GREEN : PW_WHITE;
         char drawChar = selectedChar ? passwordEntryScreenData->password[i] : '*';
 
-        Paint_DrawChar(xPos, yPos, drawChar, drawFont, BLACK, charColor);
+        wallet_gfx_draw_char(xPos, yPos, drawChar, passwordFont, charColor, PW_BLACK);
         
         if(selectedChar) {
-            Paint_DrawLine(
-                xPos, yPos + drawFont->Height + 2, 
-                xPos + drawFont->Width, yPos + drawFont->Height + 2, 
-                GREEN,
-                DOT_PIXEL_1X1,
-                LINE_STYLE_SOLID
+            wallet_gfx_draw_line(
+                xPos, yPos + passwordFont->charHeight + 2, 
+                xPos + passwordFont->charWidth, yPos + passwordFont->charHeight + 2, 
+                1, 
+                PW_GREEN
             );
         }
-        xPos += drawFont->Width;
+        xPos += passwordFont->charWidth;
     }
 
     render_button_bar(BUTTON_BAR_TYPES);
