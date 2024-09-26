@@ -7,13 +7,14 @@
 #define EXTENDED_MASTER_KEY_LENGTH          (64)
 #define ENTROPY_BITS                        (256)
 #define ENTROPY_CHECKSUM_BYTES              (1)
-#define NUM_WORDS_IN_MNEMONIC_SENTENCE      (24)
 #define MAX_MNEMONIC_PASSPHRASE_LENGTH      (16)
+#define MNEMONIC_LENGTH                     (24)
+#define MAX_MNEMONIC_WORD_LENGTH            (8)
 
 
 typedef struct {
     uint8_t entropy[(ENTROPY_BITS / 8) + ENTROPY_CHECKSUM_BYTES];
-    const char* mnemonic[NUM_WORDS_IN_MNEMONIC_SENTENCE];
+    const char* mnemonic[MNEMONIC_LENGTH];
     uint8_t seed[EXTENDED_MASTER_KEY_LENGTH];
 } SeedCtx;
 

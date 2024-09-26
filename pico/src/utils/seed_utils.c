@@ -17,8 +17,7 @@
 #define MIN_RANDOM_BITS                 (128)
 #define MAX_RANDOM_BITS                 (256)
 
-#define BIP39_MAX_WORD_LENGTH           (8)
-#define SENTENCE_LENGTH_CHARS           ((NUM_WORDS_IN_MNEMONIC_SENTENCE * (BIP39_MAX_WORD_LENGTH + 1)) - 1)
+#define SENTENCE_LENGTH_CHARS           ((MNEMONIC_LENGTH * (MAX_MNEMONIC_WORD_LENGTH + 1)) - 1)
 
 
 #if USE_DEBUG_ENTROPY
@@ -150,7 +149,7 @@ int generate_seed(SeedCtx* ctx, const char* passphrase, int passphraseLen) {
 #define WORD_SPACE      (10)
     printf("Mnemonic phrase:");
     printf("\n    ");
-    for(int i = 0; i < NUM_WORDS_IN_MNEMONIC_SENTENCE; ++i) {
+    for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
 
         printf("%s", ctx->mnemonic[i]);
         if(((i+1) % 4) == 0) {
@@ -177,7 +176,7 @@ int generate_seed(SeedCtx* ctx, const char* passphrase, int passphraseLen) {
     }
 
     mnemonic_to_seed(
-        ctx->mnemonic, NUM_WORDS_IN_MNEMONIC_SENTENCE,
+        ctx->mnemonic, MNEMONIC_LENGTH,
         _mnemonicPassphraseBuffer, mpLen,
         ctx->seed
     );

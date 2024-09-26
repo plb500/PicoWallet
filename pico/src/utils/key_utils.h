@@ -5,10 +5,8 @@
 #define PUBLIC_KEY_LENGTH                   (33)
 #define CHAIN_CODE_LENGTH                   (32)
 #define FINGERPRINT_LENGTH                  (4)
-#define MNEMONIC_LENGTH                     (24)
-#define MAX_MNEMONIC_WORD_LENGTH            (8)
 
-
+#include "seed_utils.h"
 #include "pico/stdlib.h"
 
 
@@ -37,7 +35,8 @@ typedef struct {
  * 
  * seedPhrase       in      The string that may be used when generating the seed phrase. Optional.
  * seedPhraseLen    in      The number of characters in the "mnemonic" parameter
- * dest             out     Storage for the newly created key     
+ * dest             out     Storage for the newly created key
+ * mnemonicSentence out     Storage for the mnemonic recovery phrase generated for the new key
  */
 int generate_master_key(
     const uint8_t *seedPhrase, int seedPhraseLen, 
