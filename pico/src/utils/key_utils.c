@@ -54,7 +54,7 @@ const uint8_t PRIVATE_KEY_ADDRESS_PREFIX[]  = {0x04, 0x88, 0xAD, 0xE4};
 uint8_t _workBuffer[WORK_BUFFER_SIZE];
 
 
-int generate_master_key(const uint8_t *seedPhrase, int seedPhraseLen, ExtendedKey* dest, const char* mnemonicSentence[]) {
+int generate_master_key(const uint8_t *seedPhrase, int seedPhraseLen, ExtendedKey* dest, char mnemonicSentence[MNEMONIC_LENGTH][MAX_MNEMONIC_WORD_LENGTH + 1]) {
     SeedCtx* ctx = (SeedCtx*) _workBuffer;
     uint8_t* key = _workBuffer + sizeof(SeedCtx);
     const uECC_Curve curve = uECC_secp256k1();
@@ -92,7 +92,7 @@ int generate_master_key(const uint8_t *seedPhrase, int seedPhraseLen, ExtendedKe
     // Store mnemonic, if asked to
     if(mnemonicSentence) {
         for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
-            mnemonicSentence[i] = ctx->mnemonic[i];
+            strncpy(mnemonicSentence[i], ctx->mnemonic[i], MAX_MNEMONIC_WORD_LENGTH + 1);
         }
     }
 }

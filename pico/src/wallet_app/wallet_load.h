@@ -14,15 +14,14 @@ typedef enum {
     PW_CREATE_WALLET_FILE_STATE,
     PW_TERMINAL_ERROR_STATE,
     PW_DISPLAY_CREATED_MNEMONIC_STATE,
-    PW_WALLET_LOADED_READY_STATE,
-    PW_WALLET_CREATED_READY_STATE
+    PW_WALLET_READY_STATE,
 } WalletLoadState;
 
 
 typedef struct {
     WalletLoadState currentState;
     WalletScreen* currentScreen;
-    uint8_t walletFileBuffer[128];
+    uint8_t walletFileBuffer[WALLET_FILE_SIZE];
     uint8_t screenDataBuffer[128];
     HDWallet wallet;
     wallet_error walletLoadError;

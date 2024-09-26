@@ -7,11 +7,14 @@
 #include <stdint.h>
 
 
+#define WALLET_FILE_SIZE            (320)
+
+
 typedef struct {
     ExtendedKey masterKey;                              // The root, master key
     ExtendedKey baseKey44;                              // BIP44 Base key from which all keys derive ("purpose" = 44)
     uint8_t password[USER_PASSWORD_LENGTH];
-    const char* mnemonicSentence[MNEMONIC_LENGTH];      // Only available on newly creted keys, not keys loaded frm file
+    char mnemonicSentence[MNEMONIC_LENGTH][MAX_MNEMONIC_WORD_LENGTH + 1];
 } HDWallet;
 
 
@@ -26,7 +29,7 @@ int init_new_wallet(HDWallet* wallet, const uint8_t* password, const uint8_t* mn
 /**
  * Encrypt and save the supplied wallet to the wallet.dat file
  */
-wallet_error save_wallet(const HDWallet* wallet);
+wallet_error save_wallet(const HDWallet* wallet, uint8_t* fileBuffer);
 
 /**
  * Load the raw, encrypted file bytes from wallet.dat

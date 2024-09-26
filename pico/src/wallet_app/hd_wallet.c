@@ -18,6 +18,40 @@
 #define BASE_KEY_INDEX          (44)
 
 
+//
+// Wallet file format
+//  
+//  +-------------------------------+
+//  | Version Code (unencrypted)    |   1 byte major, 1 byte minor
+//  | 2 bytes                       |
+//  +-------------------------------+
+//  | Verification Header           |   PKBKDF-SHA256 of user password
+//  | 32 bytes                      |
+//  +-------------------------------+
+//  | Master Private Key            |
+//  | 32 bytes                      |
+//  +-------------------------------+
+//  | Master Chain Code             |
+//  | 32 bytes                      |
+//  +-------------------------------+
+//  | Mnemonic Sentence             |   Not each word is going to use the full 8 chars
+//  | 216 bytes ((8+1) * 24)        |   Smaller words are zero padded
+//  +-------------------------------+
+//  |              Total: 314 bytes |
+//  | Padded to multiple            |
+//  |         of keysize: 320 bytes |
+//  +-------------------------------+
+//
+//
+
+#define WALLET_FILE_VERSION_MAJOR   (0x00)
+#define WALLET_FILE_VERSION_MINOR   (0x01)
+
+const uint16_t WALLET_FILE_VERSION  = ((WALLET_FILE_VERSION_MAJOR << 8) | WALLET_FILE_VERSION_MINOR);
+static const char* const WALLET_FILE       = "wallet.dat";
+static const char* const WALLET_DIRECTORY  = "PicoWallet";
+
+
 // Hardware Configuration of SPI "objects"
 // Note: multiple SD cards can be driven by one SPI if they use different slave
 // selects.
@@ -40,8 +74,6 @@ static sd_card_t SD_CARD = {
                                         // present. Use -1 if there is no card detect.
 };
 
-static const char* const WALLET_FILE       = "wallet.dat";
-static const char* const WALLET_DIRECTORY  = "PicoWallet";
 static cf_aes_context aesContext;
 
 
@@ -59,11 +91,7 @@ size_t sd_get_num() {
 }
 
 sd_card_t *sd_get_by_num(size_t num) {
-    if (num <= sd_get_num()) {
-        return &SD_CARD;
-    } else {
-        return NULL;
-    }
+    return (num <= sd_get_num()) ? &SD_CARD : NULL;
 }
 
 size_t spi_get_num() { 
@@ -71,12 +99,92 @@ size_t spi_get_num() {
 }
 
 spi_t *spi_get_by_num(size_t num) {
-    if (num <= sd_get_num()) {
-        return &SDCARD_SPI;
-    } else {
-        return NULL;
-    }
+    return (num <= sd_get_num()) ? &SDCARD_SPI : NULL;
 }
+
+int wallet_to_bytes(const HDWallet* wallet, uint8_t* dest) {
+    uint8_t* writePtr = dest;
+    uint8_t padBytes;
+
+    // Write version code
+    memcpy(dest, &WALLET_FILE_VERSION, sizeof(WALLET_FILE_VERSION));
+    writePtr += sizeof(WALLET_FILE_VERSION);
+
+    // Write password hash header
+    cf_pbkdf2_hmac(
+        wallet->password, USER_PASSWORD_LENGTH, 
+        PASSCODE_PEPPER, strlen(PASSCODE_PEPPER), 
+        2048, 
+        writePtr, PBKDF2_HMAC_SHA256_SIZE,
+        &cf_sha256
+    );
+    writePtr += PBKDF2_HMAC_SHA256_SIZE;
+
+    // Write private key
+    memcpy(writePtr, wallet->masterKey.privateKey, PRIVATE_KEY_LENGTH);
+    writePtr += PRIVATE_KEY_LENGTH;
+
+    // Write chain code
+    memcpy(writePtr, wallet->masterKey.chainCode, CHAIN_CODE_LENGTH); 
+    writePtr += CHAIN_CODE_LENGTH;
+
+    // Write mnemonic
+    for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
+        strncpy(writePtr, wallet->mnemonicSentence[i], MAX_MNEMONIC_WORD_LENGTH + 1);
+        writePtr += (MAX_MNEMONIC_WORD_LENGTH + 1);
+    }
+
+    // Pad to a multiple of password block length
+    padBytes = PASSWORD_BLOCK_LENGTH- ((writePtr - dest) % PASSWORD_BLOCK_LENGTH);
+    for(int i = 0; i < padBytes; ++i) {
+        *writePtr++ = 0xFF;
+    }
+
+    return (writePtr - dest);
+}
+
+wallet_error wallet_from_bytes(HDWallet* wallet, uint8_t* src) {
+    uint8_t* readPtr = src;
+    uint16_t version;
+    uint8_t workBuffer[32];
+
+    // Read and validate version code
+    memcpy(&version, readPtr, sizeof(version));
+    readPtr += sizeof(version);
+    if(version != WALLET_FILE_VERSION) {
+        return WALLET_ERROR(WF_FILE_VERSION_MISMATCH, 0);
+    }
+
+    // Validate password hash header
+    cf_pbkdf2_hmac(
+        wallet->password, USER_PASSWORD_LENGTH, 
+        PASSCODE_PEPPER, strlen(PASSCODE_PEPPER), 
+        2048, 
+        workBuffer, PBKDF2_HMAC_SHA256_SIZE,
+        &cf_sha256
+    );
+    if(memcmp(workBuffer, readPtr, PBKDF2_HMAC_SHA256_SIZE) != 0) {
+        return WALLET_ERROR(WF_INVALID_PASSWORD, 0);
+    }
+    readPtr += PBKDF2_HMAC_SHA256_SIZE;
+
+    // Read private key
+    memcpy(wallet->masterKey.privateKey, readPtr, PRIVATE_KEY_LENGTH);
+    readPtr += PRIVATE_KEY_LENGTH;
+
+    // Read chain code
+    memcpy(wallet->masterKey.chainCode, readPtr, CHAIN_CODE_LENGTH); 
+    readPtr += CHAIN_CODE_LENGTH;
+
+    // Read mnemonic
+    for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
+        strncpy(wallet->mnemonicSentence[i], readPtr, MAX_MNEMONIC_WORD_LENGTH + 1);
+        readPtr += (MAX_MNEMONIC_WORD_LENGTH + 1);
+    }
+
+    return NO_ERROR;
+}
+
 
 FRESULT open_wallet_file(FIL* file, int write) {
     FRESULT fr;
@@ -119,40 +227,6 @@ FRESULT open_wallet_file(FIL* file, int write) {
     }
 }
 
-void encrypt_data(const uint8_t* key, int keySize, const uint8_t* inBuffer, int bufferSize, uint8_t* outBuffer) {
-    int bytesRemaining = bufferSize;
-    const uint8_t* in = inBuffer;
-    uint8_t* out = outBuffer;
-
-    cf_aes_init(&aesContext, key, keySize);
-
-    while(bytesRemaining) {
-        cf_aes_encrypt(&aesContext, in, out);
-        in += AES_BLOCKSZ;
-        out += AES_BLOCKSZ;
-        bytesRemaining -= AES_BLOCKSZ;
-    }
-
-    cf_aes_finish(&aesContext);
-}
-
-void decrypt_data(const uint8_t* key, int keySize, const uint8_t* inBuffer, int bufferSize, uint8_t* outBuffer) {
-    int bytesRemaining = bufferSize;
-    const uint8_t* in = inBuffer;
-    uint8_t* out = outBuffer;
-
-    cf_aes_init(&aesContext, key, keySize);
-
-    while(bytesRemaining) {
-        cf_aes_decrypt(&aesContext, in, out);
-        in += AES_BLOCKSZ;
-        out += AES_BLOCKSZ;
-        bytesRemaining -= AES_BLOCKSZ;
-    }
-
-    cf_aes_finish(&aesContext);
-}
-
 FRESULT close_wallet_file(FIL* file) {
     sd_card_t* sd = sd_get_by_num(0);
 
@@ -170,55 +244,57 @@ int init_new_wallet(HDWallet* wallet, const uint8_t* password, const uint8_t* mn
     return 1;
 }
 
-wallet_error save_wallet(const HDWallet* wallet) {
+wallet_error save_wallet(const HDWallet* wallet, uint8_t* fileBuffer) {
     FRESULT openResult, closeResult, writeResult;
-    FIL walletFile;
-    uint8_t workBuffer[32];
+    uint8_t workBuffer[AES_BLOCKSZ];
     uint8_t paddedPassword[PASSWORD_BLOCK_LENGTH];
+    FIL walletFile;
     UINT bytesWritten;
+    int bytesToWrite;
+    uint8_t* writePtr;
 
+
+    // Open wallet file for writing
     openResult = open_wallet_file(&walletFile, 1);
-
     if (FR_OK != openResult) {
         printf("f_open(%s) error: %s (%d)\n", WALLET_FILE, FRESULT_str(openResult), openResult);
         return WALLET_ERROR(WF_FAILED_TO_OPEN, openResult);
     }
 
+    // Serialize wallet to raw bytes
+    bytesToWrite = wallet_to_bytes(wallet, fileBuffer);
+    writePtr = fileBuffer;
+
+    // Encrypt and write raw bytes in chunks
     pad_password(wallet->password, paddedPassword);
+    cf_aes_init(&aesContext, paddedPassword, PASSWORD_BLOCK_LENGTH);
 
-    // Create the password hash header
-    cf_pbkdf2_hmac(
-        wallet->password, USER_PASSWORD_LENGTH, 
-        PASSCODE_PEPPER, strlen(PASSCODE_PEPPER), 
-        2048, 
-        workBuffer, PBKDF2_HMAC_SHA256_SIZE,
-        &cf_sha256
-    );
+    while(bytesToWrite) {
+        // Encrypt
+        cf_aes_encrypt(&aesContext, writePtr, workBuffer);
+        
+        // Store
+        writeResult = f_write(&walletFile, workBuffer, AES_BLOCKSZ, &bytesWritten);
 
-    // Write password hash header
-    writeResult = f_write(&walletFile, workBuffer, PBKDF2_HMAC_SHA256_SIZE, &bytesWritten);
-    if(bytesWritten != PBKDF2_HMAC_SHA256_SIZE) {
-        return WALLET_ERROR(WF_FAILED_TO_WRITE_KEY_DATA, writeResult);
+        // Check
+        if((FR_OK != writeResult) || (bytesWritten != AES_BLOCKSZ)) {
+            close_wallet_file(&walletFile);
+            return WALLET_ERROR(WF_FAILED_TO_WRITE_KEY_DATA, writeResult);
+        }
+
+        // Loop
+        writePtr += AES_BLOCKSZ;
+        bytesToWrite -= AES_BLOCKSZ;
     }
 
-    // Encrypt and write master private key
-    encrypt_data(paddedPassword, PASSWORD_BLOCK_LENGTH, wallet->masterKey.privateKey, PRIVATE_KEY_LENGTH, workBuffer);
-    writeResult = f_write(&walletFile, workBuffer, PRIVATE_KEY_LENGTH, &bytesWritten);
-    if(bytesWritten != 32) {
-        return WALLET_ERROR(WF_FAILED_TO_WRITE_KEY_DATA, writeResult);
-    }
-
-    // Encrypt and write master chain code
-    encrypt_data(paddedPassword, PASSWORD_BLOCK_LENGTH, wallet->masterKey.chainCode, CHAIN_CODE_LENGTH, workBuffer);
-    writeResult = f_write(&walletFile, workBuffer, CHAIN_CODE_LENGTH, &bytesWritten);
-    if(bytesWritten != 32) {
-        return WALLET_ERROR(WF_FAILED_TO_WRITE_KEY_DATA, writeResult);
-    }
+    cf_aes_finish(&aesContext);     // Done encrypting
 
     closeResult = close_wallet_file(&walletFile);
     if (FR_OK != closeResult) {
         printf("f_close error: %s (%d)\n", FRESULT_str(closeResult), closeResult);
     }
+
+    return NO_ERROR;
 }
 
 wallet_error load_wallet_bytes(uint8_t* walletBytes) {
@@ -250,6 +326,8 @@ wallet_error load_wallet_bytes(uint8_t* walletBytes) {
 
     if(FR_OK != readResult) {
         returnValue = WALLET_ERROR(WF_FAILED_TO_READ_KEY_DATA, readResult);
+    } else if((writePtr - walletBytes) != WALLET_FILE_SIZE) {
+        returnValue = WALLET_ERROR(WF_WALLET_FILE_CORRUPTED, readResult);
     }
 
     closeResult = close_wallet_file(&walletFile);
@@ -261,41 +339,33 @@ wallet_error load_wallet_bytes(uint8_t* walletBytes) {
 }
 
 wallet_error rehydrate_wallet(HDWallet* wallet, uint8_t* walletBytes) {
+    wallet_error walletParseError;
     uint8_t workBuffer[64];
-    int passwordCmp;
-    wallet_error err;
-    uint8_t* readBuffer;
     uint8_t paddedPassword[PASSWORD_BLOCK_LENGTH];
     const uECC_Curve curve = uECC_secp256k1();
+    uint16_t bytesToProcess = WALLET_FILE_SIZE;
+    uint8_t* readPtr = walletBytes;
 
+
+    // Decrypt the wallet bytes
     pad_password(wallet->password, paddedPassword);
+    cf_aes_init(&aesContext, paddedPassword, PASSWORD_BLOCK_LENGTH);
+    while(bytesToProcess) {
+        cf_aes_decrypt(&aesContext, readPtr, workBuffer);
+        memcpy(readPtr, workBuffer, AES_BLOCKSZ);
+        readPtr += AES_BLOCKSZ;
+        bytesToProcess -= AES_BLOCKSZ;
+    }
+    cf_aes_finish(&aesContext);
 
-    // Validate hash
-    cf_pbkdf2_hmac(
-        wallet->password, USER_PASSWORD_LENGTH, 
-        PASSCODE_PEPPER, strlen(PASSCODE_PEPPER), 
-        2048, 
-        workBuffer, PBKDF2_HMAC_SHA256_SIZE,
-        &cf_sha256
-    );
-
-    // Compare
-    passwordCmp = memcmp(workBuffer, walletBytes, PBKDF2_HMAC_SHA256_SIZE);
-    if(passwordCmp != 0) {
-        return WALLET_ERROR(WF_INVALID_PASSWORD, 0);
+    // Convert the raw bytes into base wallet elements
+    walletParseError = wallet_from_bytes(wallet, walletBytes);
+    if(NO_ERROR != walletParseError) {
+        return walletParseError;
     }
 
-    // Decrypt master private key
-    readBuffer = (walletBytes + 32);
-    decrypt_data(paddedPassword, PASSWORD_BLOCK_LENGTH, readBuffer, PRIVATE_KEY_LENGTH, workBuffer);
-    memcpy(wallet->masterKey.privateKey, workBuffer, PRIVATE_KEY_LENGTH);
-
-    // Decrypt master chain code
-    readBuffer += PRIVATE_KEY_LENGTH;
-    decrypt_data(paddedPassword, PASSWORD_BLOCK_LENGTH, readBuffer, CHAIN_CODE_LENGTH, workBuffer);
-    memcpy(wallet->masterKey.chainCode, workBuffer, CHAIN_CODE_LENGTH);
-
-    // Fill out remaining key data
+    // At this point we should have the basic wallet elements available to
+    // fill out remaining key data
     wallet->masterKey.depth = 0;
     wallet->masterKey.index = 0;
     memset(wallet->masterKey.parentFingerprint, 0, FINGERPRINT_LENGTH);
