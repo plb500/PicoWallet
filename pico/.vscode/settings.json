@@ -92,5 +92,5 @@
       "gfx_utils.h": "c",
       "wallet_screen.h": "c"
     },
-    "cortex-debug.variableUseNaturalFormat": true,
+    "cortex-debug.variableUseNaturalFormat": false,
 }

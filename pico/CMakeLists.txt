@@ -36,6 +36,7 @@ add_executable(PicoWallet
     ${WALLET_SRC}/utils/key_print_utils.c
     ${WALLET_SRC}/utils/key_utils.c
     ${WALLET_SRC}/utils/seed_utils.c
+    ${WALLET_SRC}/utils/wallet_file.c
 
     ${WALLET_SRC}/wallet_app/hd_wallet.c
     ${WALLET_SRC}/wallet_app/wallet_app.c

@@ -1,6 +1,7 @@
 #include "wallet_load.h"
 #include "wallet_defs.h"
 
+#include "utils/wallet_file.h"
 #include "screens/password_entry_screen.h"
 #include "screens/info_message_screen.h"
 #include "screens/timed_info_message_screen.h"
@@ -38,6 +39,7 @@ void get_password_for_create_state_update(WalletLoadStateController* controller)
 void wallet_ready_state_update(WalletLoadStateController* controller);
 void display_mnemonic_state_update(WalletLoadStateController* controller);
 
+HDWallet debugWallet;
 
 void display_icon_message_screen(WalletLoadStateController* controller, IconType iconType, const KeyButtonType buttons[NUM_KEYS], const char* format, ...) {
     va_list args;
@@ -133,7 +135,7 @@ void initial_app_state_update(WalletLoadStateController* controller) {
 }
 
 void load_wallet_file_state_update(WalletLoadStateController* controller) {
-    wallet_error err = load_wallet_bytes(controller->walletFileBuffer);
+    wallet_error err = load_wallet_data_from_disk(controller->walletFileBuffer);
 
     if(NO_ERROR == err) {
         // Wallet data loaded, need to get password to unlock
@@ -167,7 +169,7 @@ void get_password_for_load_state_update(WalletLoadStateController* controller) {
         controller->currentScreen->screenExitFunction(controller->currentScreen, controller->wallet.password);
 
         // Check file data can be decrypted
-        decryptError = rehydrate_wallet(&controller->wallet, controller->walletFileBuffer);
+        decryptError = decrypt_wallet_data(controller->walletFileBuffer, &controller->wallet);
         if(decryptError != NO_ERROR) {
             // Something bad happened. File might be corrupted or password
             // was incorrect
@@ -190,6 +192,7 @@ void get_password_for_load_state_update(WalletLoadStateController* controller) {
             }
         } else {
             // All is good - file bytes have been decrypted into wallet instance
+            recover_wallet(&debugWallet);
             display_icon_message_screen(
                 controller, SUCCESS, WALLET_CREATED_KEYS,
                 "Wallet ready!"
@@ -233,7 +236,7 @@ void get_password_for_create_state_update(WalletLoadStateController* controller)
 
         // Need to create a new wallet
         init_new_wallet(&controller->wallet, userPasswordBytes, 0, 0);
-        saveError = save_wallet(&controller->wallet, controller->walletFileBuffer);
+        saveError = save_wallet(&controller->wallet);
         if(saveError != NO_ERROR) {
             // Something bad happened. SD card might be corrupted or removed
             display_icon_message_screen(

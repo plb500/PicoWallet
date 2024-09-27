@@ -54,47 +54,75 @@ const uint8_t PRIVATE_KEY_ADDRESS_PREFIX[]  = {0x04, 0x88, 0xAD, 0xE4};
 uint8_t _workBuffer[WORK_BUFFER_SIZE];
 
 
+void master_key_from_seed(uint8_t* seed, ExtendedKey* dest);
+
+
+void seed_to_extended_key_params(uint8_t* seed, uint8_t* privateKey, uint8_t* chainCode) {
+    uint8_t key[EXTENDED_MASTER_KEY_LENGTH];
+
+    // Run the seed through HMAC-SHA512 to get our master extended private key and chain code
+    cf_hmac(
+        "Bitcoin seed", 12, 
+        seed, EXTENDED_MASTER_KEY_LENGTH,
+        key,
+        &cf_sha512
+    );
+
+    memcpy(privateKey, key, PRIVATE_KEY_LENGTH); 
+    memcpy(chainCode, key + PRIVATE_KEY_LENGTH, CHAIN_CODE_LENGTH); 
+}
+
 int generate_master_key(const uint8_t *seedPhrase, int seedPhraseLen, ExtendedKey* dest, char mnemonicSentence[MNEMONIC_LENGTH][MAX_MNEMONIC_WORD_LENGTH + 1]) {
     SeedCtx* ctx = (SeedCtx*) _workBuffer;
-    uint8_t* key = _workBuffer + sizeof(SeedCtx);
+
+    // Generate our random seed
+    generate_seed(ctx, seedPhrase, seedPhraseLen);
+
+    // Store seed mnemonic, if asked to
+    if(mnemonicSentence) {
+        for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
+            strncpy(mnemonicSentence[i], ctx->mnemonic[i], MAX_MNEMONIC_WORD_LENGTH + 1);
+        }
+    }
+
+    master_key_from_seed(ctx->seed, dest);
+}
+
+int generate_master_key_from_mnemonic(
+    char mnemonicSentence[MNEMONIC_LENGTH][MAX_MNEMONIC_WORD_LENGTH + 1], ExtendedKey* dest
+) {
+    uint8_t seed[EXTENDED_MASTER_KEY_LENGTH];
+    const char* c[MNEMONIC_LENGTH];
+    for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
+        c[i] = mnemonicSentence[i];
+    }
+
+    mnemonic_to_seed(c, MNEMONIC_LENGTH, "mnemonic", 8, seed);
+    master_key_from_seed(seed, dest);
+}
+
+void master_key_from_seed(uint8_t* seed, ExtendedKey* dest) {
     const uECC_Curve curve = uECC_secp256k1();
+    uint8_t key[UNCOMPRESSED_PUBLIC_KEY_LENGTH];
 
     // Set master key base variables
     dest->depth = 0;
     dest->index = 0;
     memset(dest->parentFingerprint, 0, FINGERPRINT_LENGTH);
 
-    // Generate our random seed
-    generate_seed(ctx, seedPhrase, seedPhraseLen);
-
-    // Run the seed through HMAC-SHA512 to get our master extended private key and chain code
-    cf_hmac(
-        "Bitcoin seed", 12, 
-        ctx->seed, EXTENDED_MASTER_KEY_LENGTH,
-        key,
-        &cf_sha512
-    );
-
-    memcpy(dest->privateKey, key, PRIVATE_KEY_LENGTH); 
-    memcpy(dest->chainCode, key + PRIVATE_KEY_LENGTH, CHAIN_CODE_LENGTH); 
+    // Convert seed to private key and chain code
+    seed_to_extended_key_params(seed, dest->privateKey, dest->chainCode);
 
     // Get and compress the public key
     int success = uECC_compute_public_key(dest->privateKey, key, curve);
     if(success) {
-        dest->publicKey[0] = (key[63] & 1) ? 0x03 : 0x02;
+        dest->publicKey[0] = (key[UNCOMPRESSED_PUBLIC_KEY_LENGTH - 1] & 1) ? 0x03 : 0x02;
         memcpy(&(dest->publicKey[1]), key, (PUBLIC_KEY_LENGTH - 1));
     }
 
     // Get fingerprint
     hash_160(dest->publicKey, PUBLIC_KEY_LENGTH, _workBuffer);
     memcpy(dest->fingerprint, _workBuffer, FINGERPRINT_LENGTH);
-
-    // Store mnemonic, if asked to
-    if(mnemonicSentence) {
-        for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
-            strncpy(mnemonicSentence[i], ctx->mnemonic[i], MAX_MNEMONIC_WORD_LENGTH + 1);
-        }
-    }
 }
 
 int derive_child_key(const ExtendedKey* parentKey, uint32_t index, ExtendedKey* dest) {

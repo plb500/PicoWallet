@@ -2,6 +2,7 @@
 #define _KEY_UTILS_H_
 
 #define PRIVATE_KEY_LENGTH                  (32)
+#define UNCOMPRESSED_PUBLIC_KEY_LENGTH      (64)
 #define PUBLIC_KEY_LENGTH                   (33)
 #define CHAIN_CODE_LENGTH                   (32)
 #define FINGERPRINT_LENGTH                  (4)
@@ -42,6 +43,11 @@ int generate_master_key(
     const uint8_t *seedPhrase, int seedPhraseLen, 
     ExtendedKey* dest, char mnemonicSentence[MNEMONIC_LENGTH][MAX_MNEMONIC_WORD_LENGTH + 1]
 );
+
+int generate_master_key_from_mnemonic(
+    char mnemonicSentence[MNEMONIC_LENGTH][MAX_MNEMONIC_WORD_LENGTH + 1], ExtendedKey* dest
+);
+
 
 /**
  * Derive a new key from the supplied parent key.

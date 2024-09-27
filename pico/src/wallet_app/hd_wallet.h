@@ -7,8 +7,9 @@
 #include <stdint.h>
 
 
-#define WALLET_FILE_SIZE            (320)
+#define SERIALIZED_WALLET_SIZE            (320)
 
+extern const uint16_t WALLET_VERSION;
 
 typedef struct {
     ExtendedKey masterKey;                              // The root, master key
@@ -26,10 +27,22 @@ typedef struct {
  */
 int init_new_wallet(HDWallet* wallet, const uint8_t* password, const uint8_t* mnemonic, int mnemonicLen);
 
+wallet_error decrypt_wallet_data(uint8_t* data, HDWallet* dest);
+
+wallet_error recover_wallet(HDWallet* wallet);
+
 /**
- * Encrypt and save the supplied wallet to the wallet.dat file
+ * Encrypt and save the supplied wallet to disk
  */
-wallet_error save_wallet(const HDWallet* wallet, uint8_t* fileBuffer);
+wallet_error save_wallet(const HDWallet* wallet);
+
+
+
+
+
+
+
+
 
 /**
  * Load the raw, encrypted file bytes from wallet.dat
@@ -40,6 +53,7 @@ wallet_error load_wallet_bytes(uint8_t* walletBytes);
  * Convert encrypted wallet.dat file data into a working HDWallet
  */
 wallet_error rehydrate_wallet(HDWallet* wallet, uint8_t* walletBytes);
+
 
 
 #endif      // _HD_WALLET_H_

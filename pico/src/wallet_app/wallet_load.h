@@ -21,7 +21,7 @@ typedef enum {
 typedef struct {
     WalletLoadState currentState;
     WalletScreen* currentScreen;
-    uint8_t walletFileBuffer[WALLET_FILE_SIZE];
+    uint8_t walletFileBuffer[SERIALIZED_WALLET_SIZE];
     uint8_t screenDataBuffer[128];
     HDWallet wallet;
     wallet_error walletLoadError;
