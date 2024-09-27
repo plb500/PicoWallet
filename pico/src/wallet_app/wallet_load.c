@@ -31,15 +31,18 @@ static const KeyButtonType WALLET_CREATED_KEYS[] = {
 
 
 void initial_app_state_update(WalletLoadStateController* controller);
-void load_wallet_file_state_update(WalletLoadStateController* controller);
+
+void load_wallet_state_update(WalletLoadStateController* controller);
+void recover_wallet_state_update(WalletLoadStateController* controller);
+void create_wallet_state_update(WalletLoadStateController* controller);
+
 void get_password_for_load_state_update(WalletLoadStateController* controller);
-void display_password_error_for_load_state_update(WalletLoadStateController* controller);
-void create_wallet_file_state_update(WalletLoadStateController* controller);
 void get_password_for_create_state_update(WalletLoadStateController* controller);
+void display_password_error_for_load_state_update(WalletLoadStateController* controller);
+
 void wallet_ready_state_update(WalletLoadStateController* controller);
 void display_mnemonic_state_update(WalletLoadStateController* controller);
 
-HDWallet debugWallet;
 
 void display_icon_message_screen(WalletLoadStateController* controller, IconType iconType, const KeyButtonType buttons[NUM_KEYS], const char* format, ...) {
     va_list args;
@@ -89,7 +92,7 @@ void display_timed_info_message_screen(WalletLoadStateController* controller, ui
 
 void init_wallet_load_state_controller(WalletLoadStateController* controller) {
     controller->currentState = PW_INITIAL_APP_STATE;
-    display_timed_info_message_screen(controller, 1000, "Loading wallet");
+    display_timed_info_message_screen(controller, 100, "Loading wallet");
 }
 
 void update_wallet_load_state_controller(WalletLoadStateController* controller) {
@@ -101,20 +104,23 @@ void update_wallet_load_state_controller(WalletLoadStateController* controller) 
         case PW_INITIAL_APP_STATE:
             initial_app_state_update(controller);
             break;
-        case PW_LOAD_WALLET_FILE_STATE:
-            load_wallet_file_state_update(controller);
+        case PW_LOAD_WALLET_STATE:
+            load_wallet_state_update(controller);
             break;
-        case PW_GET_PASSWORD_FOR_LOAD_STATE:
+        case PW_CREATE_WALLET_STATE:
+            create_wallet_state_update(controller);
+            break;
+        case PW_RECOVER_WALLET_STATE:
+            recover_wallet_state_update(controller);
+            break;
+        case PW_GET_PASSWORD_FOR_DECRYPT_STATE:
             get_password_for_load_state_update(controller);
+            break;
+        case PW_GET_PASSWORD_FOR_ENCRYPT_STATE:
+            get_password_for_create_state_update(controller);
             break;
         case PW_DISPLAY_PASSWORD_ERROR_FOR_LOAD_STATE:
             display_password_error_for_load_state_update(controller);
-            break;
-        case PW_CREATE_WALLET_FILE_STATE:
-            create_wallet_file_state_update(controller);
-            break;
-        case PW_GET_PASSWORD_FOR_CREATE_STATE:
-            get_password_for_create_state_update(controller);
             break;
         case PW_DISPLAY_CREATED_MNEMONIC_STATE:
             display_mnemonic_state_update(controller);
@@ -130,24 +136,24 @@ void update_wallet_load_state_controller(WalletLoadStateController* controller) 
 void initial_app_state_update(WalletLoadStateController* controller) {
     // Initial state, transition to load wallet state
     if(controller->currentScreen->exitCode) {
-        controller->currentState = PW_LOAD_WALLET_FILE_STATE;
+        controller->currentState = PW_LOAD_WALLET_STATE;
     }
 }
 
-void load_wallet_file_state_update(WalletLoadStateController* controller) {
+void load_wallet_state_update(WalletLoadStateController* controller) {
     wallet_error err = load_wallet_data_from_disk(controller->walletFileBuffer);
 
     if(NO_ERROR == err) {
-        // Wallet data loaded, need to get password to unlock
-        controller->currentState = PW_GET_PASSWORD_FOR_LOAD_STATE;
+        // Wallet data loaded, need to get password to decrypt
+        controller->currentState = PW_GET_PASSWORD_FOR_DECRYPT_STATE;
         
         init_password_entry_screen(controller->currentScreen);
         controller->currentScreen->screenEnterFunction(controller->currentScreen);
     } else if(GET_WF_RESULT(err) == WF_FILE_NOT_FOUND) {
-        // There was no wallet file, need to create a new file
-        controller->currentState = PW_CREATE_WALLET_FILE_STATE;
-        display_info_message_screen(controller, "No wallet file\n\nCreating new\nwallet");
-    } else {
+        // There was no wallet file, attempt recovery
+        controller->currentState = PW_RECOVER_WALLET_STATE;
+        display_info_message_screen(controller, "No wallet file\n\nLooking for\nrecovery file");
+    } else { 
         // Loading wallet failed completely, display error state
         display_icon_message_screen(
             controller, ERROR, NO_KEYS,
@@ -156,6 +162,78 @@ void load_wallet_file_state_update(WalletLoadStateController* controller) {
 
         controller->walletLoadError = err;
         controller->currentState = PW_TERMINAL_ERROR_STATE;
+    }
+}
+
+void recover_wallet_state_update(WalletLoadStateController* controller) {
+    wallet_error err = recover_wallet(&controller->wallet);
+
+    if(NO_ERROR == err) {
+        // Wallet recovered, need to get password to encrypt new wallet
+        controller->currentState = PW_GET_PASSWORD_FOR_ENCRYPT_STATE;
+        
+        init_password_entry_screen(controller->currentScreen);
+        controller->currentScreen->screenEnterFunction(controller->currentScreen);
+    } else if(GET_WF_RESULT(err) == WF_FILE_NOT_FOUND) {
+        // There was no wallet file, create brand new wallet
+        controller->currentState = PW_CREATE_WALLET_STATE;
+        display_info_message_screen(controller, "No recovery file\n\nCreating new\nwallet");
+    } else { 
+        // Loading wallet failed completely, display error state
+        display_icon_message_screen(
+            controller, ERROR, NO_KEYS,
+            "Load failed\nCode: 0x%04X", err
+        );
+
+        controller->walletLoadError = err;
+        controller->currentState = PW_TERMINAL_ERROR_STATE;
+    }
+}
+
+void create_wallet_state_update(WalletLoadStateController* controller) {
+    assert(controller->currentScreen->screenID == INFO_MESSAGE_SCREEN);
+    
+    init_new_wallet(&controller->wallet, 0, 0, 0);
+    if(controller->currentScreen->exitCode) {
+        controller->currentState = PW_GET_PASSWORD_FOR_ENCRYPT_STATE;
+        
+        init_password_entry_screen(controller->currentScreen);
+        controller->currentScreen->screenEnterFunction(controller->currentScreen);
+    }
+}
+
+void get_password_for_create_state_update(WalletLoadStateController* controller) {
+    uint8_t userPasswordBytes[USER_PASSWORD_LENGTH];
+    wallet_error saveError;
+
+    assert(controller->currentScreen->screenID == PASSWORD_ENTRY_SCREEN);
+
+    if(controller->currentScreen->exitCode) {
+        // Get password bytes from screen
+        controller->currentScreen->screenExitFunction(controller->currentScreen, userPasswordBytes);
+
+        // Set wallet password
+        set_wallet_password(&controller->wallet, userPasswordBytes);
+
+        // Save new wallet to disk
+        saveError = save_wallet(&controller->wallet);
+        if(saveError != NO_ERROR) {
+            // Something bad happened. SD card might be corrupted or removed
+            display_icon_message_screen(
+                controller, ERROR, NO_KEYS,
+                "Error saving\nCode: 0x%04X", saveError
+            );
+
+            controller->walletLoadError = saveError;
+            controller->currentState = PW_TERMINAL_ERROR_STATE;
+        } else {
+            // All is good - new wallet instance is ready and data has been stored and encrypted on disk
+            display_icon_message_screen(
+                controller, SUCCESS, WALLET_CREATED_KEYS,
+                "Wallet ready!"
+            );
+            controller->currentState = PW_WALLET_READY_STATE;
+        }
     }
 }
 
@@ -192,7 +270,6 @@ void get_password_for_load_state_update(WalletLoadStateController* controller) {
             }
         } else {
             // All is good - file bytes have been decrypted into wallet instance
-            recover_wallet(&debugWallet);
             display_icon_message_screen(
                 controller, SUCCESS, WALLET_CREATED_KEYS,
                 "Wallet ready!"
@@ -206,54 +283,10 @@ void display_password_error_for_load_state_update(WalletLoadStateController* con
     assert(controller->currentScreen->screenID == INFO_MESSAGE_SCREEN);
 
     if(controller->currentScreen->exitCode) {
-        controller->currentState = PW_GET_PASSWORD_FOR_LOAD_STATE;
+        controller->currentState = PW_GET_PASSWORD_FOR_DECRYPT_STATE;
         
         init_password_entry_screen(controller->currentScreen);
         controller->currentScreen->screenEnterFunction(controller->currentScreen);
-    }
-}
-
-void create_wallet_file_state_update(WalletLoadStateController* controller) {
-    assert(controller->currentScreen->screenID == INFO_MESSAGE_SCREEN);
-
-    if(controller->currentScreen->exitCode) {
-        controller->currentState = PW_GET_PASSWORD_FOR_CREATE_STATE;
-        
-        init_password_entry_screen(controller->currentScreen);
-        controller->currentScreen->screenEnterFunction(controller->currentScreen);
-    }
-}
-
-void get_password_for_create_state_update(WalletLoadStateController* controller) {
-    uint8_t userPasswordBytes[USER_PASSWORD_LENGTH];
-    wallet_error saveError;
-
-    assert(controller->currentScreen->screenID == PASSWORD_ENTRY_SCREEN);
-
-    if(controller->currentScreen->exitCode) {
-        // Get password bytes from screen
-        controller->currentScreen->screenExitFunction(controller->currentScreen, userPasswordBytes);
-
-        // Need to create a new wallet
-        init_new_wallet(&controller->wallet, userPasswordBytes, 0, 0);
-        saveError = save_wallet(&controller->wallet);
-        if(saveError != NO_ERROR) {
-            // Something bad happened. SD card might be corrupted or removed
-            display_icon_message_screen(
-                controller, ERROR, NO_KEYS,
-                "Error saving\nCode: 0x%04X", saveError
-            );
-
-            controller->walletLoadError = saveError;
-            controller->currentState = PW_TERMINAL_ERROR_STATE;
-        } else {
-            // All is good - new wallet instance is ready and data has been stored and encrypted on disk
-            display_icon_message_screen(
-                controller, SUCCESS, WALLET_CREATED_KEYS,
-                "Wallet ready!"
-            );
-            controller->currentState = PW_WALLET_READY_STATE;
-        }
     }
 }
 

@@ -7,7 +7,7 @@
 #include <stdio.h>
 
 
-static const char* const WALLET_FILE        = "wallet9.dat";
+static const char* const WALLET_FILE        = "wallet.dat";
 static const char* const MNEMONICS_FILE     = "mnemonic.txt";
 static const char* const WALLET_DIRECTORY   = "PicoWallet";
 

@@ -155,7 +155,7 @@ wallet_error deserialize_wallet(const uint8_t* src, HDWallet* wallet) {
 
 int init_new_wallet(HDWallet* wallet, const uint8_t* password, const uint8_t* mnemonic, int mnemonicLen) {
     generate_master_key(mnemonic, mnemonicLen, &wallet->masterKey, wallet->mnemonicSentence);
-    memcpy(wallet->password, password, USER_PASSWORD_LENGTH);
+    set_wallet_password(wallet, password);
     derive_child_key(&wallet->masterKey, BASE_KEY_INDEX, &wallet->baseKey44);
     return 1;
 }
@@ -193,14 +193,17 @@ wallet_error recover_wallet(HDWallet* wallet) {
     wallet_error readMnemonicResult;
     char mnemonics[MNEMONIC_LENGTH][MAX_MNEMONIC_WORD_LENGTH + 1];
 
-    readMnemonicResult = read_mnemonics_from_disk(mnemonics);
+    readMnemonicResult = read_mnemonics_from_disk(wallet->mnemonicSentence);
     if(readMnemonicResult != NO_ERROR) {
         return readMnemonicResult;
     }
 
+
     // Build keys
-    generate_master_key_from_mnemonic(mnemonics, &wallet->masterKey);
+    generate_master_key_from_mnemonic(wallet->mnemonicSentence, &wallet->masterKey);
     derive_child_key(&wallet->masterKey, BASE_KEY_INDEX, &wallet->baseKey44);
+
+    return NO_ERROR;
 }
 
 wallet_error save_wallet(const HDWallet* wallet) {
@@ -225,4 +228,10 @@ wallet_error save_wallet(const HDWallet* wallet) {
 
     // Save to disk
     return save_wallet_data_to_disk(walletSerializationBuffer);
+}
+
+void set_wallet_password(HDWallet* wallet, const uint8_t* password) {
+    if(password) {
+        memcpy(wallet->password, password, USER_PASSWORD_LENGTH);
+    }
 }

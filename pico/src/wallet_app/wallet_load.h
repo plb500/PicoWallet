@@ -6,15 +6,16 @@
 
 
 typedef enum {
-    PW_INITIAL_APP_STATE,
-    PW_LOAD_WALLET_FILE_STATE,
-    PW_GET_PASSWORD_FOR_LOAD_STATE,
-    PW_DISPLAY_PASSWORD_ERROR_FOR_LOAD_STATE,
-    PW_GET_PASSWORD_FOR_CREATE_STATE,
-    PW_CREATE_WALLET_FILE_STATE,
-    PW_TERMINAL_ERROR_STATE,
-    PW_DISPLAY_CREATED_MNEMONIC_STATE,
-    PW_WALLET_READY_STATE,
+    PW_INITIAL_APP_STATE,                           // App has just started loader
+    PW_LOAD_WALLET_STATE,                           // Attempting to load wallet from wallet.dat file on disk
+    PW_RECOVER_WALLET_STATE,                        // Loading has failed and we are attempting to recover from mnemonic file
+    PW_CREATE_WALLET_STATE,                         // Loading and recovery has failed and we are creating a new wallet
+    PW_GET_PASSWORD_FOR_DECRYPT_STATE,              // Attempting to decrypt the wallet loaded from wallet.dat
+    PW_GET_PASSWORD_FOR_ENCRYPT_STATE,              // Getting user password to encrypt newly created wallet
+    PW_DISPLAY_PASSWORD_ERROR_FOR_LOAD_STATE,       // Decryption has failed
+    PW_TERMINAL_ERROR_STATE,                        // Unrecoverable error state
+    PW_DISPLAY_CREATED_MNEMONIC_STATE,              // Showing user reovery mnemonics
+    PW_WALLET_READY_STATE,                          // A wallet is loaded and ready to use
 } WalletLoadState;
 
 
