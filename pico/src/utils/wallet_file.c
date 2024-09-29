@@ -202,7 +202,11 @@ wallet_error read_mnemonics_from_disk(char mnemonics[MNEMONIC_LENGTH][MAX_MNEMON
     // Open mnemonic file
     openResult = open_wallet_file(&mnemonicsFile, 0, MNEMONICS_FILE);
     if(FR_OK != openResult) {
-        return WALLET_ERROR(WF_FAILED_TO_OPEN, openResult);
+        if((FR_NO_FILE == openResult) || (FR_NO_PATH == openResult)) {
+            return WALLET_ERROR(WF_FILE_NOT_FOUND, 0);
+        } else {
+            return WALLET_ERROR(WF_FAILED_TO_OPEN, openResult);
+        }
     }
 
     // Loop until we hit our first mnemonic char. This gets rid of any leading spaces or newlines or

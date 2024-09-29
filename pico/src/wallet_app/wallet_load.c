@@ -166,35 +166,38 @@ void load_wallet_state_update(WalletLoadStateController* controller) {
 }
 
 void recover_wallet_state_update(WalletLoadStateController* controller) {
-    wallet_error err = recover_wallet(&controller->wallet);
+    assert(controller->currentScreen->screenID == INFO_MESSAGE_SCREEN);
 
-    if(NO_ERROR == err) {
-        // Wallet recovered, need to get password to encrypt new wallet
-        controller->currentState = PW_GET_PASSWORD_FOR_ENCRYPT_STATE;
-        
-        init_password_entry_screen(controller->currentScreen);
-        controller->currentScreen->screenEnterFunction(controller->currentScreen);
-    } else if(GET_WF_RESULT(err) == WF_FILE_NOT_FOUND) {
-        // There was no wallet file, create brand new wallet
-        controller->currentState = PW_CREATE_WALLET_STATE;
-        display_info_message_screen(controller, "No recovery file\n\nCreating new\nwallet");
-    } else { 
-        // Loading wallet failed completely, display error state
-        display_icon_message_screen(
-            controller, ERROR, NO_KEYS,
-            "Load failed\nCode: 0x%04X", err
-        );
+    if(controller->currentScreen->exitCode) {
+        wallet_error err = recover_wallet(&controller->wallet);
+        if(NO_ERROR == err) {
+            // Wallet recovered, need to get password to encrypt new wallet
+            controller->currentState = PW_GET_PASSWORD_FOR_ENCRYPT_STATE;
+            
+            init_password_entry_screen(controller->currentScreen);
+            controller->currentScreen->screenEnterFunction(controller->currentScreen);
+        } else if(GET_WF_RESULT(err) == WF_FILE_NOT_FOUND) {
+            // There was no wallet file, create brand new wallet
+            controller->currentState = PW_CREATE_WALLET_STATE;
+            display_info_message_screen(controller, "No recovery file\n\nCreating new\nwallet");
+        } else { 
+            // Loading wallet failed completely, display error state
+            display_icon_message_screen(
+                controller, ERROR, NO_KEYS,
+                "Load failed\nCode: 0x%04X", err
+            );
 
-        controller->walletLoadError = err;
-        controller->currentState = PW_TERMINAL_ERROR_STATE;
+            controller->walletLoadError = err;
+            controller->currentState = PW_TERMINAL_ERROR_STATE;
+        }
     }
 }
 
 void create_wallet_state_update(WalletLoadStateController* controller) {
     assert(controller->currentScreen->screenID == INFO_MESSAGE_SCREEN);
     
-    init_new_wallet(&controller->wallet, 0, 0, 0);
     if(controller->currentScreen->exitCode) {
+        init_new_wallet(&controller->wallet, 0, 0, 0);
         controller->currentState = PW_GET_PASSWORD_FOR_ENCRYPT_STATE;
         
         init_password_entry_screen(controller->currentScreen);

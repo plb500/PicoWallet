@@ -16,7 +16,7 @@
 //      Wallet serialization format
 //  
 //  +-------------------------------+
-//  | Version Code (unencrypted)    |   1 byte major, 1 byte minor
+//  | Version Code                  |   1 byte major, 1 byte minor
 //  | 2 bytes                       |
 //  +-------------------------------+
 //  | Verification Header           |   PKBKDF-SHA256 of user password
@@ -103,17 +103,14 @@ int serialize_wallet(const HDWallet* wallet, uint8_t* dest) {
 }
 
 wallet_error deserialize_wallet(const uint8_t* src, HDWallet* wallet) {
-    const uint8_t* readPtr = src;
-    uint16_t version;
+    const uint16_t* versionPtr = (uint16_t*) src;
+    const uint8_t* passwordHashPtr = (src + sizeof(uint16_t));
+    const uint8_t* privateKeyPtr = (passwordHashPtr + PBKDF2_HMAC_SHA256_SIZE);
+    const uint8_t* chainCodePtr = (privateKeyPtr + PRIVATE_KEY_LENGTH);
+    const uint8_t* mnemonicPtr =  (chainCodePtr + CHAIN_CODE_LENGTH);
+
     uint8_t workBuffer[64];
     const uECC_Curve curve = uECC_secp256k1();
-
-    // Read and validate version code
-    memcpy(&version, readPtr, sizeof(version));
-    readPtr += sizeof(version);
-    if(version != WALLET_VERSION) {
-        return WALLET_ERROR(WF_FILE_VERSION_MISMATCH, 0);
-    }
 
     // Validate password hash header
     cf_pbkdf2_hmac(
@@ -123,18 +120,20 @@ wallet_error deserialize_wallet(const uint8_t* src, HDWallet* wallet) {
         workBuffer, PBKDF2_HMAC_SHA256_SIZE,
         &cf_sha256
     );
-    if(memcmp(workBuffer, readPtr, PBKDF2_HMAC_SHA256_SIZE) != 0) {
+    if(memcmp(workBuffer, passwordHashPtr, PBKDF2_HMAC_SHA256_SIZE) != 0) {
         return WALLET_ERROR(WF_INVALID_PASSWORD, 0);
     }
-    readPtr += PBKDF2_HMAC_SHA256_SIZE;
+
+    // Read and validate version code
+    if(*versionPtr != WALLET_VERSION) {
+        return WALLET_ERROR(WF_FILE_VERSION_MISMATCH, 0);
+    }
 
     // Read private key
-    memcpy(wallet->masterKey.privateKey, readPtr, PRIVATE_KEY_LENGTH);
-    readPtr += PRIVATE_KEY_LENGTH;
+    memcpy(wallet->masterKey.privateKey, privateKeyPtr, PRIVATE_KEY_LENGTH);
 
     // Read chain code
-    memcpy(wallet->masterKey.chainCode, readPtr, CHAIN_CODE_LENGTH); 
-    readPtr += CHAIN_CODE_LENGTH;
+    memcpy(wallet->masterKey.chainCode, chainCodePtr, CHAIN_CODE_LENGTH); 
 
     // Get and compress the public key
     int success = uECC_compute_public_key(wallet->masterKey.privateKey, workBuffer, curve);
@@ -145,8 +144,8 @@ wallet_error deserialize_wallet(const uint8_t* src, HDWallet* wallet) {
 
     // Read mnemonic
     for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
-        strncpy(wallet->mnemonicSentence[i], readPtr, MAX_MNEMONIC_WORD_LENGTH + 1);
-        readPtr += (MAX_MNEMONIC_WORD_LENGTH + 1);
+        strncpy(wallet->mnemonicSentence[i], mnemonicPtr, MAX_MNEMONIC_WORD_LENGTH + 1);
+        mnemonicPtr += (MAX_MNEMONIC_WORD_LENGTH + 1);
     }
 
     return NO_ERROR;
@@ -161,9 +160,9 @@ int init_new_wallet(HDWallet* wallet, const uint8_t* password, const uint8_t* mn
 }
 
 wallet_error decrypt_wallet_data(uint8_t* data, HDWallet* dest) {
-    uint8_t aesBlock[AES_BLOCKSZ];
     uint8_t paddedPassword[PASSWORD_BLOCK_LENGTH];
-    uint8_t* decryptPtr = data;
+    uint8_t* dataPtr = data;
+    uint8_t* decryptedDataPtr = walletSerializationBuffer;
     wallet_error deserializeResult;
     int decryptCount = 0;
 
@@ -171,15 +170,15 @@ wallet_error decrypt_wallet_data(uint8_t* data, HDWallet* dest) {
     pad_password(dest->password, paddedPassword);
     cf_aes_init(&aesContext, paddedPassword, PASSWORD_BLOCK_LENGTH);
     while(decryptCount < SERIALIZED_WALLET_SIZE) {
-        cf_aes_decrypt(&aesContext, decryptPtr, aesBlock);
-        memcpy(decryptPtr, aesBlock, AES_BLOCKSZ);
-        decryptPtr += AES_BLOCKSZ;
+        cf_aes_decrypt(&aesContext, dataPtr, decryptedDataPtr);
+        dataPtr += AES_BLOCKSZ;
+        decryptedDataPtr += AES_BLOCKSZ;
         decryptCount += AES_BLOCKSZ;
     }
     cf_aes_finish(&aesContext);
 
     // Deserialize decrypted bytes into usable wallet
-    deserializeResult = deserialize_wallet(data, dest);
+    deserializeResult = deserialize_wallet(walletSerializationBuffer, dest);
     if(deserializeResult != NO_ERROR) {
         return deserializeResult;
     }
