@@ -9,6 +9,14 @@ set(WALLET_SRC "${PROJECT_SOURCE_DIR}/src")
 
 pico_sdk_init()
 
+# Generate the password pepper
+find_package(Python COMPONENTS Interpreter REQUIRED)
+execute_process(
+    COMMAND ${Python_EXECUTABLE} "pepper_gen.py" "-l 16" 
+    WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
+    OUTPUT_VARIABLE PEPPER
+)
+
 add_subdirectory(${WALLET_SRC}/3rdParty/FatFs_SPI)
 add_subdirectory(${WALLET_SRC}/3rdParty/waveshare_lcd)
 add_subdirectory(${WALLET_SRC}/3rdParty/cryptography/cifra)
@@ -74,9 +82,7 @@ target_include_directories(PicoWallet PRIVATE
 target_compile_definitions(PicoWallet PRIVATE 
     DEBUG_SEED_GENERATION=1
     USE_DEBUG_ENTROPY=1
-
-    # CHANGE THESE TO YOUR OWN PEPPER
-    PASSCODE_PEPPER="VR4*bFZIzrzyDU61"
+    PASSCODE_PEPPER="${PEPPER}"
 )
 
 pico_enable_stdio_usb(PicoWallet 1)
