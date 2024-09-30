@@ -1,6 +1,7 @@
 #include "wallet_app.h"
-#include "screens/splash_screen.h"
 #include "wallet_load.h"
+#include "wallet_browse.h"
+#include "screens/splash_screen.h"
 #include "gfx/gfx_utils.h"
 
 
@@ -23,22 +24,21 @@ static const uint8_t KEY_PINS[] = {
 static uint8_t keyStates[NUM_KEYS];
 static uint32_t keyHoldTimes[NUM_KEYS];
 
+static HDWallet wallet;
 static WalletScreen currentScreen;
 static ApplicationState currentAppState;
 static WalletLoadStateController walletLoadStateController = {
-    .currentScreen = &currentScreen
+    .currentScreen = &currentScreen,
+    .wallet = &wallet
+};
+static WalletBrowserStateController walletBrowserStateController = {
+    .currentScreen = &currentScreen,
+    .wallet = &wallet
 };
 
 
 WalletScreen* get_current_screen() {
-    switch(currentAppState) {
-        case APP_SPLASH_SCREEN:
-            return &currentScreen;
-        case APP_LOADING_WALLET:
-            return walletLoadStateController.currentScreen;
-        case APP_USING_WALLET:
-            return NULL;
-    }
+    return &currentScreen;
 }
 
 void do_splash_screen_update() {
@@ -50,6 +50,14 @@ void do_splash_screen_update() {
 
 void do_wallet_load_update() {
     update_wallet_load_state_controller(&walletLoadStateController);
+    if(walletLoadStateController.userExitRequested) {
+        // Switch state to browsing
+        init_wallet_browser_state_controller(&walletBrowserStateController);
+        currentAppState = APP_USING_WALLET;    }
+}
+
+void do_wallet_browser_update() {
+    update_wallet_browser_state_controller(&walletBrowserStateController);
 }
 
 void init_key_buttons() {
@@ -114,6 +122,7 @@ void update_application() {
             do_wallet_load_update();
             break;
         case APP_USING_WALLET:
+            do_wallet_browser_update();
             break;
     }
 }

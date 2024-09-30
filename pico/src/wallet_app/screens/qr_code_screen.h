@@ -1,8 +1,11 @@
 #ifndef _QR_CODE_SCREEN_H_
 #define _QR_CODE_SCREEN_H_
 
-#include "pico/stdlib.h"
+#include "wallet_screen.h"
+#include "utils/key_utils.h"
 
-void set_qr_code(uint8_t* qrCodeBytes);
+
+void init_qr_code_screen(WalletScreen* screen, ExtendedKey* key, bool privateKey);
+
 
 #endif      // _QR_CODE_SCREEN_H_

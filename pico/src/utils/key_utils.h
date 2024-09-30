@@ -59,7 +59,7 @@ int generate_master_key_from_mnemonic(
  * index            in      The child index of the newly created key within the parent.
  * dest             out     Storage for the newly created key     
  */
-int derive_child_key(const ExtendedKey* parentKey, uint32_t index, ExtendedKey* dest);
+int derive_child_key(const ExtendedKey* parentKey, uint32_t index, bool hardened, ExtendedKey* dest);
 
 
 // Address utilities

@@ -125,29 +125,39 @@ void master_key_from_seed(uint8_t* seed, ExtendedKey* dest) {
     memcpy(dest->fingerprint, _workBuffer, FINGERPRINT_LENGTH);
 }
 
-int derive_child_key(const ExtendedKey* parentKey, uint32_t index, ExtendedKey* dest) {
+int derive_child_key(const ExtendedKey* parentKey, uint32_t index, bool hardened, ExtendedKey* dest) {
     const uECC_Curve curve = uECC_secp256k1();
     uint8_t* hmacData = _workBuffer;
     uint8_t* workBuffer = _workBuffer + PRIVATE_KEY_LENGTH + 4 + 1;
     
-    index += HARDENED_CHILD_INDEX_OFFSET;
+    if(hardened) {
+        index += HARDENED_CHILD_INDEX_OFFSET;
+    }
 
     memcpy(dest->parentFingerprint, parentKey->fingerprint, FINGERPRINT_LENGTH);
     dest->depth = (parentKey->depth + 1);
     dest->index = index;
 
     // Generate new key
-    hmacData[0] = 0;
-    memcpy(&(hmacData[1]), parentKey->privateKey, PRIVATE_KEY_LENGTH);
-    hmacData[PRIVATE_KEY_LENGTH + 1] = ((uint8_t*) &index)[3];
-    hmacData[PRIVATE_KEY_LENGTH + 2] = ((uint8_t*) &index)[2];
-    hmacData[PRIVATE_KEY_LENGTH + 3] = ((uint8_t*) &index)[1];
-    hmacData[PRIVATE_KEY_LENGTH + 4] = ((uint8_t*) &index)[0];
+
+    uint16_t hmacKeyBytes;
+    if(hardened) {
+        hmacData[0] = 0;
+        memcpy(&(hmacData[1]), parentKey->privateKey, PRIVATE_KEY_LENGTH);
+        hmacKeyBytes = PRIVATE_KEY_LENGTH + 1;
+    } else {
+        memcpy(&(hmacData[0]), parentKey->publicKey, PUBLIC_KEY_LENGTH);
+        hmacKeyBytes = PUBLIC_KEY_LENGTH;
+    }
+    hmacData[hmacKeyBytes] = ((uint8_t*) &index)[3];
+    hmacData[hmacKeyBytes + 1] = ((uint8_t*) &index)[2];
+    hmacData[hmacKeyBytes + 2] = ((uint8_t*) &index)[1];
+    hmacData[hmacKeyBytes + 3] = ((uint8_t*) &index)[0];
 
     // Run the parent key parameters through HMAC-SHA512 to get our master extended private key and chain code
     cf_hmac(
         parentKey->chainCode, CHAIN_CODE_LENGTH, 
-        hmacData, PRIVATE_KEY_LENGTH + 5,
+        hmacData, hmacKeyBytes + 4,
         workBuffer,
         &cf_sha512
     );

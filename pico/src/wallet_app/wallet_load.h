@@ -24,8 +24,9 @@ typedef struct {
     WalletScreen* currentScreen;
     uint8_t walletFileBuffer[SERIALIZED_WALLET_SIZE];
     uint8_t screenDataBuffer[128];
-    HDWallet wallet;
+    HDWallet* wallet;
     wallet_error walletLoadError;
+    bool userExitRequested;
 } WalletLoadStateController;
 
 void init_wallet_load_state_controller(WalletLoadStateController* controller);

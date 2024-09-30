@@ -18,7 +18,7 @@ void password_entry_screen_key_released(WalletScreen* screen, DisplayKey key);
 void password_entry_screen_key_held(WalletScreen* screen, DisplayKey key);
 void draw_password_entry_screen(WalletScreen* screen);
 void password_entry_screen_enter(WalletScreen* screen);
-void password_entry_screen_exit(WalletScreen* screen, uint8_t* outputData);
+void password_entry_screen_exit(WalletScreen* screen, void* outputData);
 void password_entry_screen_update(WalletScreen* screen);
 
 
@@ -140,7 +140,7 @@ void password_entry_screen_enter(WalletScreen* screen) {
     passwordEntryScreenData->password[7] = 'd';
 }
 
-void password_entry_screen_exit(WalletScreen* screen, uint8_t* outputData) {
+void password_entry_screen_exit(WalletScreen* screen, void* outputData) {
     PasswordEntryData* passwordEntryScreenData = (PasswordEntryData*) screen->screenData; 
     memcpy(outputData, passwordEntryScreenData->password, USER_PASSWORD_LENGTH);
 }

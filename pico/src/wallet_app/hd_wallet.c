@@ -155,7 +155,7 @@ wallet_error deserialize_wallet(const uint8_t* src, HDWallet* wallet) {
 int init_new_wallet(HDWallet* wallet, const uint8_t* password, const uint8_t* mnemonic, int mnemonicLen) {
     generate_master_key(mnemonic, mnemonicLen, &wallet->masterKey, wallet->mnemonicSentence);
     set_wallet_password(wallet, password);
-    derive_child_key(&wallet->masterKey, BASE_KEY_INDEX, &wallet->baseKey44);
+    derive_child_key(&wallet->masterKey, BASE_KEY_INDEX, true, &wallet->baseKey44);
     return 1;
 }
 
@@ -183,7 +183,7 @@ wallet_error decrypt_wallet_data(uint8_t* data, HDWallet* dest) {
         return deserializeResult;
     }
 
-    derive_child_key(&dest->masterKey, BASE_KEY_INDEX, &dest->baseKey44);
+    derive_child_key(&dest->masterKey, BASE_KEY_INDEX, true, &dest->baseKey44);
 
     return NO_ERROR;
 }
@@ -200,7 +200,7 @@ wallet_error recover_wallet(HDWallet* wallet) {
 
     // Build keys
     generate_master_key_from_mnemonic(wallet->mnemonicSentence, &wallet->masterKey);
-    derive_child_key(&wallet->masterKey, BASE_KEY_INDEX, &wallet->baseKey44);
+    derive_child_key(&wallet->masterKey, BASE_KEY_INDEX, true, &wallet->baseKey44);
 
     return NO_ERROR;
 }

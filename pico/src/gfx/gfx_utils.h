@@ -8,7 +8,8 @@ typedef enum {
     PW_WHITE    = 0xFFFF,
     PW_BLACK    = 0x0000,
     PW_GREEN    = 0x07E0,
-    PW_TEAL     = 0x07FD
+    PW_TEAL     = 0x07FD,
+    PW_MAGENTA  = 0xF81F
 } WalletPaintColor;
 
 typedef struct {

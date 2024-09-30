@@ -25,6 +25,10 @@ typedef enum {
     RIGHT_KEY,
     OK_KEY,
     MNEMONIC_KEY,
+    QR_CODE_KEY,
+    LOOP_KEY,
+    PLUS_KEY,
+    MINUS_KEY,
     OTHER_KEY
 } KeyButtonType;
 
@@ -35,7 +39,9 @@ typedef enum {
     INFO_MESSAGE_SCREEN,
     TIMED_INFO_MESSAGE_SCREEN,
     ICON_MESSAGE_SCREEN,
-    MNEMONIC_DISPLAY_SCREEN
+    MNEMONIC_DISPLAY_SCREEN,
+    WALLET_BROWSE_SCREEN,
+    QR_CODE_SCREEN
 } ScreenID;
 
 
@@ -43,7 +49,7 @@ typedef void (*OnKeyPressedFunction) (struct WalletScreen_t*, DisplayKey);
 typedef void (*OnKeyReleasedFunction) (struct WalletScreen_t*, DisplayKey);
 typedef void (*OnKeyHoldFunction) (struct WalletScreen_t*, DisplayKey);
 typedef void (*OnScreenEnterFunction) (struct WalletScreen_t*);
-typedef void (*OnScreenExitFunction) (struct WalletScreen_t*, uint8_t* outputData);
+typedef void (*OnScreenExitFunction) (struct WalletScreen_t*, void* outputData);
 typedef void (*OnScreenUpdateFunction) (struct WalletScreen_t*);
 typedef void (*ScreenDrawFunction) (struct WalletScreen_t*);
 

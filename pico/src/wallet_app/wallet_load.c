@@ -92,6 +92,7 @@ void display_timed_info_message_screen(WalletLoadStateController* controller, ui
 
 void init_wallet_load_state_controller(WalletLoadStateController* controller) {
     controller->currentState = PW_INITIAL_APP_STATE;
+    controller->userExitRequested = false;
     display_timed_info_message_screen(controller, 100, "Loading wallet");
 }
 
@@ -169,7 +170,7 @@ void recover_wallet_state_update(WalletLoadStateController* controller) {
     assert(controller->currentScreen->screenID == INFO_MESSAGE_SCREEN);
 
     if(controller->currentScreen->exitCode) {
-        wallet_error err = recover_wallet(&controller->wallet);
+        wallet_error err = recover_wallet(controller->wallet);
         if(NO_ERROR == err) {
             // Wallet recovered, need to get password to encrypt new wallet
             controller->currentState = PW_GET_PASSWORD_FOR_ENCRYPT_STATE;
@@ -197,7 +198,7 @@ void create_wallet_state_update(WalletLoadStateController* controller) {
     assert(controller->currentScreen->screenID == INFO_MESSAGE_SCREEN);
     
     if(controller->currentScreen->exitCode) {
-        init_new_wallet(&controller->wallet, 0, 0, 0);
+        init_new_wallet(controller->wallet, 0, 0, 0);
         controller->currentState = PW_GET_PASSWORD_FOR_ENCRYPT_STATE;
         
         init_password_entry_screen(controller->currentScreen);
@@ -216,10 +217,10 @@ void get_password_for_create_state_update(WalletLoadStateController* controller)
         controller->currentScreen->screenExitFunction(controller->currentScreen, userPasswordBytes);
 
         // Set wallet password
-        set_wallet_password(&controller->wallet, userPasswordBytes);
+        set_wallet_password(controller->wallet, userPasswordBytes);
 
         // Save new wallet to disk
-        saveError = save_wallet(&controller->wallet);
+        saveError = save_wallet(controller->wallet);
         if(saveError != NO_ERROR) {
             // Something bad happened. SD card might be corrupted or removed
             display_icon_message_screen(
@@ -247,10 +248,10 @@ void get_password_for_load_state_update(WalletLoadStateController* controller) {
 
     if(controller->currentScreen->exitCode) {
         // Get password bytes from screen
-        controller->currentScreen->screenExitFunction(controller->currentScreen, controller->wallet.password);
+        controller->currentScreen->screenExitFunction(controller->currentScreen, controller->wallet->password);
 
         // Check file data can be decrypted
-        decryptError = decrypt_wallet_data(controller->walletFileBuffer, &controller->wallet);
+        decryptError = decrypt_wallet_data(controller->walletFileBuffer, controller->wallet);
         if(decryptError != NO_ERROR) {
             // Something bad happened. File might be corrupted or password
             // was incorrect
@@ -297,12 +298,14 @@ void wallet_ready_state_update(WalletLoadStateController* controller) {
     if(controller->currentScreen->exitCode == MNEMONIC_KEY) {
         MnemonicMessageScreenData data;
         for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
-            data.mnemonicSentence[i] = controller->wallet.mnemonicSentence[i];
+            data.mnemonicSentence[i] = controller->wallet->mnemonicSentence[i];
         }
         controller->currentState = PW_DISPLAY_CREATED_MNEMONIC_STATE;
         
         init_mnemonic_display_screen(controller->currentScreen, data);
         controller->currentScreen->screenEnterFunction(controller->currentScreen);
+    } else {
+        controller->userExitRequested = (controller->currentScreen->exitCode > 0);
     }
 }
 
