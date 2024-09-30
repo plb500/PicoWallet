@@ -13,7 +13,7 @@
 #include <stdarg.h>
 
 
-#define MESSAGE_LEN         (48)
+#define MESSAGE_LEN         (128)
 static char displayMessage[MESSAGE_LEN];
 static const KeyButtonType NO_KEYS[] = {
     NO_KEY,
@@ -181,6 +181,10 @@ void recover_wallet_state_update(WalletLoadStateController* controller) {
             // There was no wallet file, create brand new wallet
             controller->currentState = PW_CREATE_WALLET_STATE;
             display_info_message_screen(controller, "No recovery file\n\nCreating new\nwallet");
+        } else if(GET_WF_RESULT(err) == WF_MNEMONIC_CHECKSUM_INVALID) {
+            // There was no wallet file, create brand new wallet
+            controller->currentState = PW_CREATE_WALLET_STATE;
+            display_info_message_screen(controller, "Recovery file has\ninvalid checksum\n\nCreating new\nwallet");
         } else { 
             // Loading wallet failed completely, display error state
             display_icon_message_screen(

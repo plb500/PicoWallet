@@ -197,6 +197,10 @@ wallet_error recover_wallet(HDWallet* wallet) {
         return readMnemonicResult;
     }
 
+    // Make sure the mnemonic is valid
+    if(!validate_mnemonic(wallet->mnemonicSentence)) {
+        return WALLET_ERROR(WF_MNEMONIC_CHECKSUM_INVALID, 0);
+    }
 
     // Build keys
     generate_master_key_from_mnemonic(wallet->mnemonicSentence, &wallet->masterKey);

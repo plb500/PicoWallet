@@ -29,6 +29,7 @@ int mnemonic_to_seed(
     const char* passphrase, int passphraseLen,
     uint8_t* seed
 );
+int validate_mnemonic(char mnemonics[MNEMONIC_LENGTH][MAX_MNEMONIC_WORD_LENGTH + 1]);
 
 
 #endif      // _SEED_UTILS_H_

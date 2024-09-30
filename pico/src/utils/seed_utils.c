@@ -36,6 +36,17 @@ uint8_t _bipSentenceBuffer[SENTENCE_LENGTH_CHARS];
 uint8_t _mnemonicPassphraseBuffer[MNEMONIC_PREFIX_LENGTH + MAX_MNEMONIC_PASSPHRASE_LENGTH];
 
 
+int16_t get_bip39_word_idx(const char* word) {
+    // Stupidly inefficient. I will fix this later
+    for(int i = 0; i < 2048; ++i) {
+        if(!strcmp(word, BIP39_WORD_LIST[i])) {
+            return i;
+        }
+    }
+
+    return -1;
+}
+
 int create_random_bits(int numBits, uint8_t* dest) {
     if(numBits < MIN_RANDOM_BITS) {
         numBits = MIN_RANDOM_BITS- 1;
@@ -96,6 +107,39 @@ int entropy_to_mnemonic(uint8_t *entropy, int numEntropyBits, const char** sente
     }
 
     return numWords;
+}
+
+int validate_mnemonic(char mnemonics[MNEMONIC_LENGTH][MAX_MNEMONIC_WORD_LENGTH + 1]) {
+    // The (24 word) mnemonic sentence encodes 33 bytes of data. 32 for the entropy and 
+    //1 for the checksum
+    uint8_t encoded[33];
+    uint8_t checksum[32];
+    int currentByte = 0, currentBit = 7;
+
+    memset(encoded, 0, 33);
+    for(int i = 0; i < MNEMONIC_LENGTH; ++i) {
+        int16_t idx = get_bip39_word_idx(mnemonics[i]);
+        if(idx < 0) {
+            return 0;
+        } 
+
+        // Index will be 0-2047, encoding 11 bits of data
+        for(int j = 10; j >= 0; --j) {
+            if(idx & (1 << j)) {
+                encoded[currentByte] |= (1 << currentBit);
+            }
+            --currentBit;
+            if(currentBit < 0) {
+                ++currentByte;
+                currentBit = 7;
+            }
+        }
+    }
+
+    // Hash the recovered bytes to get the checksum
+    do_sha256(encoded, 32, checksum);
+
+    return (checksum[0] == encoded[32]);
 }
 
 int mnemonic_to_seed(
