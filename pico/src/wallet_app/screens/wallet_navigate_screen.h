@@ -20,12 +20,13 @@ typedef enum {
 } WalletDerivationPaths;
 
 typedef struct {
-    uint16_t derivationPathValues[NUM_DERIVATION_PATHS];
+    uint16_t derivationPathIndices[NUM_DERIVATION_PATHS];
+     uint8_t selectedDerivationPath;
     ExtendedKey selectedKey;
 } NavigateScreenReturnData;
 
 
-void init_wallet_navigate_screen(WalletScreen* screen, ExtendedKey* baseKey, uint16_t derivationPathValues[NUM_DERIVATION_PATHS]);
+void init_wallet_navigate_screen(WalletScreen* screen, ExtendedKey* baseKey, uint8_t selectedDerivationPath, uint16_t derivationPathValues[NUM_DERIVATION_PATHS]);
 
 
 #endif      // _WALLET_NAVIGATE_SCREEN_H_

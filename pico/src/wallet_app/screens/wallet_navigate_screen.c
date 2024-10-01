@@ -7,7 +7,7 @@
 
 typedef struct {
     ExtendedKey* baseKey;
-    uint16_t derivationPathValues[NUM_DERIVATION_PATHS];
+    uint16_t derivationPathIndices[NUM_DERIVATION_PATHS];
     uint8_t selectedDerivationPath;
 } NavigateScreenData;
 
@@ -72,16 +72,16 @@ void handle_nav_button_interaction(WalletScreen* screen, DisplayKey key) {
             }
             break;
         case KEY_B:
-            if(navScreenData->derivationPathValues[navScreenData->selectedDerivationPath] > 0) {
-                navScreenData->derivationPathValues[navScreenData->selectedDerivationPath] -= 1;
+            if(navScreenData->derivationPathIndices[navScreenData->selectedDerivationPath] > 0) {
+                navScreenData->derivationPathIndices[navScreenData->selectedDerivationPath] -= 1;
             }
             break;
         case KEY_C:
             if(
                 (DERIVATION_PATH_MAX[navScreenData->selectedDerivationPath] < 0) ||
-                (navScreenData->derivationPathValues[navScreenData->selectedDerivationPath] < DERIVATION_PATH_MAX[navScreenData->selectedDerivationPath])
+                (navScreenData->derivationPathIndices[navScreenData->selectedDerivationPath] < DERIVATION_PATH_MAX[navScreenData->selectedDerivationPath])
             ) {
-                navScreenData->derivationPathValues[navScreenData->selectedDerivationPath] += 1;
+                navScreenData->derivationPathIndices[navScreenData->selectedDerivationPath] += 1;
             }
             break;
     }
@@ -96,7 +96,7 @@ void update_keys(WalletScreen* screen) {
 
         derive_child_key(
             parentKey, 
-            navScreenData->derivationPathValues[i], 
+            navScreenData->derivationPathIndices[i], 
             indexHardened,
             &DERIVATION_PATH_KEYS[i]
         );
@@ -104,7 +104,7 @@ void update_keys(WalletScreen* screen) {
 }
 
 
-void init_wallet_navigate_screen(WalletScreen* screen, ExtendedKey* baseKey, uint16_t derivationPathValues[NUM_DERIVATION_PATHS]) {
+void init_wallet_navigate_screen(WalletScreen* screen, ExtendedKey* baseKey, uint8_t selectedDerivationPath, uint16_t derivationPathValues[NUM_DERIVATION_PATHS]) {
     NavigateScreenData* navScreenData = (NavigateScreenData*) screen->screenData;
 
     screen->screenID = WALLET_BROWSE_SCREEN,
@@ -117,7 +117,8 @@ void init_wallet_navigate_screen(WalletScreen* screen, ExtendedKey* baseKey, uin
     screen->drawFunction = draw_wallet_navigate_screen;
 
     navScreenData->baseKey = baseKey;
-    memcpy(navScreenData->derivationPathValues, derivationPathValues, sizeof(uint16_t) * NUM_DERIVATION_PATHS);
+    navScreenData->selectedDerivationPath = selectedDerivationPath;
+    memcpy(navScreenData->derivationPathIndices, derivationPathValues, sizeof(uint16_t) * NUM_DERIVATION_PATHS);
 }
 
 void wallet_navigate_screen_key_released(WalletScreen* screen, DisplayKey key) {
@@ -172,7 +173,7 @@ void draw_wallet_navigate_screen(WalletScreen* screen) {
         xPos += (strlen(lineData) * drawFont->charWidth);
 
         sprintf(lineData, DERIVATION_PATH_VALUE_FORMATS[i],
-            navScreenData->derivationPathValues[i]
+            navScreenData->derivationPathIndices[i]
         );
         wallet_gfx_draw_string(xPos, yPos, lineData, strlen(lineData), drawFont, PW_WHITE, PW_BLACK);
         yPos += drawFont->charHeight + 1;
@@ -184,7 +185,6 @@ void draw_wallet_navigate_screen(WalletScreen* screen) {
 void wallet_navigate_screen_enter(WalletScreen* screen) {
     NavigateScreenData* navScreenData = (NavigateScreenData*) screen->screenData;
     
-    navScreenData->selectedDerivationPath = COIN;
     screen->exitCode = 0;
 }
 
@@ -192,7 +192,8 @@ void wallet_navigate_screen_exit(WalletScreen* screen, void* outputData) {
     NavigateScreenData* navScreenData = (NavigateScreenData*) screen->screenData;
     NavigateScreenReturnData* returnValue = (NavigateScreenReturnData*) outputData;
 
-    memcpy(&returnValue->derivationPathValues, navScreenData->derivationPathValues, sizeof(navScreenData->derivationPathValues));
+    returnValue->selectedDerivationPath = navScreenData->selectedDerivationPath;
+    memcpy(&returnValue->derivationPathIndices, navScreenData->derivationPathIndices, sizeof(navScreenData->derivationPathIndices));
     memcpy(&returnValue->selectedKey, &DERIVATION_PATH_KEYS[navScreenData->selectedDerivationPath], sizeof(ExtendedKey));
 }
 

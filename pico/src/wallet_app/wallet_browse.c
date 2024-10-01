@@ -6,7 +6,8 @@
 
 
 static NavigateScreenReturnData cachedNavScreenData = {
-    .derivationPathValues = {0, 0, 0, 0}
+    .selectedDerivationPath = COIN,
+    .derivationPathIndices = {0, 0, 0, 0}
 };
 
 
@@ -17,7 +18,12 @@ void do_qr_code_screen_state_update(WalletBrowserStateController* controller);
 void init_wallet_browser_state_controller(WalletBrowserStateController* controller) {
     controller->currentState = PW_NAVIGATING_WALLET_STATE;
     
-    init_wallet_navigate_screen(controller->currentScreen, &controller->wallet->baseKey44, cachedNavScreenData.derivationPathValues);
+    init_wallet_navigate_screen(
+        controller->currentScreen, 
+        &controller->wallet->baseKey44, 
+        cachedNavScreenData.selectedDerivationPath,
+        cachedNavScreenData.derivationPathIndices
+    );
     controller->currentScreen->screenEnterFunction(controller->currentScreen);
 }
 
@@ -58,7 +64,12 @@ void do_qr_code_screen_state_update(WalletBrowserStateController* controller) {
     if(controller->currentScreen->exitCode) {
         controller->currentState = PW_NAVIGATING_WALLET_STATE;
         
-        init_wallet_navigate_screen(controller->currentScreen, &controller->wallet->baseKey44, cachedNavScreenData.derivationPathValues);
+        init_wallet_navigate_screen(
+            controller->currentScreen, 
+            &controller->wallet->baseKey44,
+            cachedNavScreenData.selectedDerivationPath,
+            cachedNavScreenData.derivationPathIndices
+        );
         controller->currentScreen->screenEnterFunction(controller->currentScreen);
     }
 }
