@@ -19,8 +19,8 @@
 //  | Version Code                  |   1 byte major, 1 byte minor
 //  | 2 bytes                       |
 //  +-------------------------------+
-//  | Verification Header           |   PKBKDF-SHA256 of user password
-//  | 32 bytes                      |
+//  | Verification Header           |   Last 16 bytes of PKBKDF-SHA256 of user password
+//  | 16 bytes                      |
 //  +-------------------------------+
 //  | Master Private Key            |
 //  | 32 bytes                      |
@@ -31,9 +31,9 @@
 //  | Mnemonic Sentence             |   Not each word is going to use the full 8 chars
 //  | 216 bytes ((8+1) * 24)        |   Smaller words are zero padded
 //  +-------------------------------+
-//  |              Total: 314 bytes |
+//  |              Total: 298 bytes |
 //  | Padded to multiple            |
-//  |         of keysize: 320 bytes |
+//  |      of block size: 304 bytes |
 //  +-------------------------------+
 //
 //
@@ -43,6 +43,7 @@ const uint16_t WALLET_VERSION  = ((WALLET_VERSION_MAJOR << 8) | WALLET_VERSION_M
 
 
 #define PASSWORD_BLOCK_LENGTH   (16)
+#define VALIDATION_BYTES_LENGTH (PBKDF2_HMAC_SHA256_SIZE - PASSWORD_BLOCK_LENGTH)
 #define BASE_KEY_INDEX          (44)
 
 
@@ -51,17 +52,7 @@ static cf_aes_context aesContext;
 static uint8_t walletSerializationBuffer[SERIALIZED_WALLET_SIZE];
 
 
-// Bulk out the user password (8 chars) to the AES key size (16 chars)
-void pad_password(const char* passwordSrc, char* passwordDst) {
-    for(int dst = 0, src = 0; dst < PASSWORD_BLOCK_LENGTH; ++dst) {
-        passwordDst[dst] = passwordSrc[src];
-        if(++src >= USER_PASSWORD_LENGTH) {
-            src = 0;
-        }
-    }
-}
-
-int serialize_wallet(const HDWallet* wallet, uint8_t* dest) {
+int serialize_wallet(const HDWallet* wallet, uint8_t* dest, uint8_t* validationBytes) {
     uint8_t* writePtr = dest;
     uint8_t padBytes;
 
@@ -69,15 +60,9 @@ int serialize_wallet(const HDWallet* wallet, uint8_t* dest) {
     memcpy(dest, &WALLET_VERSION, sizeof(WALLET_VERSION));
     writePtr += sizeof(WALLET_VERSION);
 
-    // Write password hash header
-    cf_pbkdf2_hmac(
-        wallet->password, USER_PASSWORD_LENGTH, 
-        PASSCODE_PEPPER, strlen(PASSCODE_PEPPER), 
-        2048, 
-        writePtr, PBKDF2_HMAC_SHA256_SIZE,
-        &cf_sha256
-    );
-    writePtr += PBKDF2_HMAC_SHA256_SIZE;
+    // Write validation bytes
+    memcpy(writePtr, validationBytes, VALIDATION_BYTES_LENGTH);
+    writePtr += VALIDATION_BYTES_LENGTH;
 
     // Write private key
     memcpy(writePtr, wallet->masterKey.privateKey, PRIVATE_KEY_LENGTH);
@@ -94,7 +79,7 @@ int serialize_wallet(const HDWallet* wallet, uint8_t* dest) {
     }
 
     // Pad to a multiple of password block length
-    padBytes = PASSWORD_BLOCK_LENGTH- ((writePtr - dest) % PASSWORD_BLOCK_LENGTH);
+    padBytes = AES_BLOCKSZ- ((writePtr - dest) % AES_BLOCKSZ);
     for(int i = 0; i < padBytes; ++i) {
         *writePtr++ = 0xFF;
     }
@@ -102,10 +87,10 @@ int serialize_wallet(const HDWallet* wallet, uint8_t* dest) {
     return (writePtr - dest);
 }
 
-wallet_error deserialize_wallet(const uint8_t* src, HDWallet* wallet) {
+wallet_error deserialize_wallet(const uint8_t* src, HDWallet* wallet, uint8_t* validationBytes) {
     const uint16_t* versionPtr = (uint16_t*) src;
     const uint8_t* passwordHashPtr = (src + sizeof(uint16_t));
-    const uint8_t* privateKeyPtr = (passwordHashPtr + PBKDF2_HMAC_SHA256_SIZE);
+    const uint8_t* privateKeyPtr = (passwordHashPtr + VALIDATION_BYTES_LENGTH);
     const uint8_t* chainCodePtr = (privateKeyPtr + PRIVATE_KEY_LENGTH);
     const uint8_t* mnemonicPtr =  (chainCodePtr + CHAIN_CODE_LENGTH);
 
@@ -113,14 +98,7 @@ wallet_error deserialize_wallet(const uint8_t* src, HDWallet* wallet) {
     const uECC_Curve curve = uECC_secp256k1();
 
     // Validate password hash header
-    cf_pbkdf2_hmac(
-        wallet->password, USER_PASSWORD_LENGTH, 
-        PASSCODE_PEPPER, strlen(PASSCODE_PEPPER), 
-        2048, 
-        workBuffer, PBKDF2_HMAC_SHA256_SIZE,
-        &cf_sha256
-    );
-    if(memcmp(workBuffer, passwordHashPtr, PBKDF2_HMAC_SHA256_SIZE) != 0) {
+    if(memcmp(passwordHashPtr, validationBytes, VALIDATION_BYTES_LENGTH) != 0) {
         return WALLET_ERROR(WF_INVALID_PASSWORD, 0);
     }
 
@@ -160,15 +138,23 @@ int init_new_wallet(HDWallet* wallet, const uint8_t* password, const uint8_t* mn
 }
 
 wallet_error decrypt_wallet_data(uint8_t* data, HDWallet* dest) {
-    uint8_t paddedPassword[PASSWORD_BLOCK_LENGTH];
+    uint8_t passwordHash[PBKDF2_HMAC_SHA256_SIZE];
     uint8_t* dataPtr = data;
     uint8_t* decryptedDataPtr = walletSerializationBuffer;
     wallet_error deserializeResult;
     int decryptCount = 0;
 
+    // Get password hash
+    cf_pbkdf2_hmac(
+        dest->password, USER_PASSWORD_LENGTH, 
+        PASSCODE_SALT, strlen(PASSCODE_SALT), 
+        2048, 
+        passwordHash, PBKDF2_HMAC_SHA256_SIZE,
+        &cf_sha256
+    );
+
     // Decrypt the wallet bytes
-    pad_password(dest->password, paddedPassword);
-    cf_aes_init(&aesContext, paddedPassword, PASSWORD_BLOCK_LENGTH);
+    cf_aes_init(&aesContext, passwordHash, PBKDF2_HMAC_SHA256_SIZE);
     while(decryptCount < SERIALIZED_WALLET_SIZE) {
         cf_aes_decrypt(&aesContext, dataPtr, decryptedDataPtr);
         dataPtr += AES_BLOCKSZ;
@@ -178,11 +164,12 @@ wallet_error decrypt_wallet_data(uint8_t* data, HDWallet* dest) {
     cf_aes_finish(&aesContext);
 
     // Deserialize decrypted bytes into usable wallet
-    deserializeResult = deserialize_wallet(walletSerializationBuffer, dest);
+    deserializeResult = deserialize_wallet(walletSerializationBuffer, dest, (passwordHash + PASSWORD_BLOCK_LENGTH));
     if(deserializeResult != NO_ERROR) {
         return deserializeResult;
     }
 
+    // Get the BIP44 m/44' base key
     derive_child_key(&dest->masterKey, BASE_KEY_INDEX, true, &dest->baseKey44);
 
     return NO_ERROR;
@@ -210,17 +197,26 @@ wallet_error recover_wallet(HDWallet* wallet) {
 }
 
 wallet_error save_wallet(const HDWallet* wallet) {
+    uint8_t passwordHash[PBKDF2_HMAC_SHA256_SIZE];
     uint8_t aesBlock[AES_BLOCKSZ];
     uint8_t paddedPassword[PASSWORD_BLOCK_LENGTH];
     uint8_t* encryptPtr = walletSerializationBuffer;
     int encryptCount = 0;
 
+    // Get password hash
+    cf_pbkdf2_hmac(
+        wallet->password, USER_PASSWORD_LENGTH, 
+        PASSCODE_SALT, strlen(PASSCODE_SALT), 
+        2048, 
+        passwordHash, PBKDF2_HMAC_SHA256_SIZE,
+        &cf_sha256
+    );
+
     // Serialize wallet to raw bytes
-    serialize_wallet(wallet, walletSerializationBuffer);
+    serialize_wallet(wallet, walletSerializationBuffer, (passwordHash + PASSWORD_BLOCK_LENGTH));
 
     // Encrypt
-    pad_password(wallet->password, paddedPassword);
-    cf_aes_init(&aesContext, paddedPassword, PASSWORD_BLOCK_LENGTH);
+    cf_aes_init(&aesContext, passwordHash, PBKDF2_HMAC_SHA256_SIZE);
     while(encryptCount < SERIALIZED_WALLET_SIZE) {
         cf_aes_encrypt(&aesContext, encryptPtr, aesBlock);
         memcpy(encryptPtr, aesBlock, AES_BLOCKSZ);

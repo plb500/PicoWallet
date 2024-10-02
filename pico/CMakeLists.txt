@@ -9,12 +9,12 @@ set(WALLET_SRC "${PROJECT_SOURCE_DIR}/src")
 
 pico_sdk_init()
 
-# Generate the password pepper
+# Generate the password salt
 find_package(Python COMPONENTS Interpreter REQUIRED)
 execute_process(
-    COMMAND ${Python_EXECUTABLE} "pepper_gen.py" "-l 16" 
+    COMMAND ${Python_EXECUTABLE} "salt_gen.py" "-l 16" 
     WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}
-    OUTPUT_VARIABLE PEPPER
+    OUTPUT_VARIABLE SALT
 )
 
 add_subdirectory(${WALLET_SRC}/3rdParty/FatFs_SPI)
@@ -82,7 +82,7 @@ target_include_directories(PicoWallet PRIVATE
 target_compile_definitions(PicoWallet PRIVATE 
     DEBUG_SEED_GENERATION=1
     USE_DEBUG_ENTROPY=1
-    PASSCODE_PEPPER="${PEPPER}"
+    PASSCODE_SALT="${SALT}"
 )
 
 pico_enable_stdio_usb(PicoWallet 1)

@@ -20,14 +20,14 @@ args = parser.parse_args()
 
 length = args.length
 
-pepper = ""
+salt = ""
 for _ in range(length):
     symbol_type = SystemRandom().randrange(len(CHARS))
     char_index= SystemRandom().randrange(len(CHARS[symbol_type]))
     char = CHARS[symbol_type][char_index]
     if char in ESCAPE_CHARS:
-        pepper += "\\"
+        salt += "\\"
     
-    pepper += char
+    salt += char
     
-print(pepper, end='')
+print(salt, end='')

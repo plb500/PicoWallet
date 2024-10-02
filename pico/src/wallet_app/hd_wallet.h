@@ -7,7 +7,7 @@
 #include <stdint.h>
 
 
-#define SERIALIZED_WALLET_SIZE            (320)
+#define SERIALIZED_WALLET_SIZE            (304)
 
 extern const uint16_t WALLET_VERSION;
 
