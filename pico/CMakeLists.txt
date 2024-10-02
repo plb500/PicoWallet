@@ -81,7 +81,7 @@ target_include_directories(PicoWallet PRIVATE
 
 target_compile_definitions(PicoWallet PRIVATE 
     DEBUG_SEED_GENERATION=1
-    USE_DEBUG_ENTROPY=1
+    USE_DEBUG_ENTROPY=0
     PASSCODE_SALT="${SALT}"
 )
 
